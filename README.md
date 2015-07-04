@@ -6,8 +6,8 @@ Kernel types
 
 Three types of experiments are executed combined with global memory accesses:
 
-1. Single precision FLOPs (multiply-additions)
-2. Double precision FLOPs (multiply-additions)
+1. Single precision Flops (multiply-additions)
+2. Double precision Flops (multiply-additions)
 3. Integer multiply-addition operations
 
 Building program
