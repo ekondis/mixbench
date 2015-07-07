@@ -1,3 +1,23 @@
+mixbench (compute & memory balancing GPU microbenchmark)
+------------------------ Device specifications ------------------------
+Device:              GeForce GTX 480
+CUDA driver version: 5.50
+GPU clock rate:      1401 MHz
+Memory clock rate:   924 MHz
+Memory bus width:    384 bits
+WarpSize:            32
+L2 cache size:       768 KB
+Total global mem:    1535 MB
+ECC enabled:         No
+Compute Capability:  2.0
+Total SPs:           480 (15 MPs x 32 SPs/MP)
+Compute throughput:  1344.96 GFlops (theoretical single precision FMAs)
+Memory bandwidth:    177.41 GB/sec
+-----------------------------------------------------------------------
+Total GPU memory 1610285056, free 1195106304
+Buffer size: 256MB
+Trade-off type:compute with global memory (grid strided)
+----------------------------------------- EXCEL data -----------------------------------------
 Operations ratio,  Single Precision ops,,,   Double precision ops,,,     Integer operations   
   compute/memory,    Time,  GFLOPS, GB/sec,    Time,  GFLOPS, GB/sec,    Time,   GIOPS, GB/sec
        0/32,       253.83,    0.00, 135.37,  477.30,    0.00, 143.98,  253.67,    0.00, 135.45
@@ -33,3 +53,4 @@ Operations ratio,  Single Precision ops,,,   Double precision ops,,,     Integer
       30/ 2,        53.35, 1207.60,  40.25,  385.72,  167.02,  11.13,   99.32,  648.66,  21.62
       31/ 1,        53.43, 1245.97,  20.10,  397.20,  167.60,   5.41,  100.89,  659.82,  10.64
       32/ 0,        53.52, 1284.06,   0.00,  410.01,  167.60,   0.00,  102.50,  670.41,   0.00
+----------------------------------------------------------------------------------------------
