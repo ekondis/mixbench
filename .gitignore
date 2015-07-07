@@ -28,5 +28,9 @@
 *.x86_64
 *.hex
 
+# Specific executables
+mixbench-cuda
+mixbench-cuda-bs
+
 # Debug files
 *.dSYM/
