@@ -159,7 +159,7 @@ extern "C" void mixbenchGPU(double *c, long size){
 	CUDA_SAFE_CALL( cudaThreadSynchronize() );
 
 	printf("----------------------------------------- EXCEL data -----------------------------------------\n");
-	printf("Operations ratio,  Single Precision ops,,,   Double precision ops,,,     Integer operations   \n");
+	printf("Operations ratio,  Single Precision ops,,,   Double precision ops,,,     Integer operations,, \n");
 	printf("  compute/memory,    Time,  GFLOPS, GB/sec,    Time,  GFLOPS, GB/sec,    Time,   GIOPS, GB/sec\n");
 
 	runbench_warmup(cd, size);
