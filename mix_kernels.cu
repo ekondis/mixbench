@@ -1,3 +1,9 @@
+/**
+ * mix_kernels.cu: This file is part of the mixbench GPU micro-benchmark suite.
+ *
+ * Contact: Elias Konstantinidis <ekondis@gmail.com>
+ **/
+
 #include <stdio.h>
 #include <math_constants.h>
 #include "lcutil.h"

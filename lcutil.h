@@ -1,3 +1,9 @@
+/**
+ * lcutil.h: This file is part of the mixbench GPU micro-benchmark suite.
+ *
+ * Contact: Elias Konstantinidis <ekondis@gmail.com>
+ **/
+
 #ifndef _CUTIL_H_
 #define _CUTIL_H_
 

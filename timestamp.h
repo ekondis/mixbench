@@ -1,3 +1,9 @@
+/**
+ * timestamp.h: This file is part of the mixbench GPU micro-benchmark suite.
+ *
+ * Contact: Elias Konstantinidis <ekondis@gmail.com>
+ **/
+
 #ifndef _TIMESTAMP_H_
 #define _TIMESTAMP_H_
 
