@@ -46,7 +46,7 @@ static void StoreDeviceInfo(cl_device_id devID, FILE *fout){
 	fprintf(fout, "Driver version:      %s\n", dev_drv);
 	fprintf(fout, "GPU clock rate:      %d MHz\n", dev_freq);
 //	fprintf(fout, "WarpSize:            %d\n", deviceProp.warpSize);
-	fprintf(fout, "Cache size:          %d KB\n", dev_cache/1024);
+	fprintf(fout, "Cache size:          %ld KB\n", dev_cache/1024);
 	fprintf(fout, "Total global mem:    %d MB\n", (int)(dev_gmem/1024/1024));
 	fprintf(fout, "OpenCL version:      %s\n", dev_clver);
 	fprintf(fout, "Total CUs:           %d\n", dev_cus);
