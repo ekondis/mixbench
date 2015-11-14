@@ -21,7 +21,7 @@
 
 #define FRACTION_CEILING(numerator, denominator) ((numerator+denominator-1)/(denominator))
 
-static cl_device_id GetDeviceID(void){
+inline cl_device_id GetDeviceID(void){
 	cl_platform_id pid;
 	cl_device_id did;
 	OCL_SAFE_CALL( clGetPlatformIDs(1, &pid, NULL) );
@@ -30,7 +30,7 @@ static cl_device_id GetDeviceID(void){
 }
 
 // Print basic device information
-static void StoreDeviceInfo(cl_device_id devID, FILE *fout){
+inline void StoreDeviceInfo(cl_device_id devID, FILE *fout){
 	char dev_name[256], dev_clver[256], dev_drv[256];
 	cl_uint dev_freq, dev_cus;
 	cl_ulong dev_cache, dev_gmem;
