@@ -23,8 +23,8 @@ int main(int argc, char* argv[]) {
 
 	unsigned int datasize = VECTOR_SIZE*sizeof(double);
 
-//	cudaSetDevice(0);
-	StoreDeviceInfo(stdout);
+	cl_device_id dev_id = GetDeviceID();
+	StoreDeviceInfo(dev_id, stdout);
 
 	printf("Buffer size: %dMB\n", datasize/(1024*1024));
 	
@@ -32,7 +32,7 @@ int main(int argc, char* argv[]) {
 	c = (double*)malloc(datasize);
 	init_vector(c, VECTOR_SIZE);
 
-//	mixbenchGPU(c, VECTOR_SIZE);
+//	mixbenchGPU(dev_id, c, VECTOR_SIZE);
 
 	free(c);
 
