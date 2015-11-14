@@ -31,6 +31,7 @@
 # Specific executables
 mixbench-cuda
 mixbench-cuda-bs
+mixbench-ocl
 
 # Debug files
 *.dSYM/
