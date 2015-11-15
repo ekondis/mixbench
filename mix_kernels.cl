@@ -2,6 +2,7 @@
 #define blockdim 256
 #define memory_ratio 16
 #define griddim 16384
+#define BLOCK_STRIDED
 
 #define COMP_ITERATIONS (8192)
 #define UNROLL_ITERATIONS (32)
