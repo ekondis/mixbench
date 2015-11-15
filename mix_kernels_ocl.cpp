@@ -36,6 +36,14 @@ char* ReadFile(const char *filename){
 	return buffer;
 }
 
+double get_event_duration(cl_event ev){
+	cl_ulong ev_t_start, ev_t_finish;
+	OCL_SAFE_CALL( clGetEventProfilingInfo(ev, CL_PROFILING_COMMAND_START, sizeof(cl_ulong), &ev_t_start, NULL) );
+	OCL_SAFE_CALL( clGetEventProfilingInfo(ev, CL_PROFILING_COMMAND_END, sizeof(cl_ulong), &ev_t_finish, NULL) );
+	double time = (ev_t_finish-ev_t_start)/1000000000.0;
+	return time;
+}
+
 /*void initializeEvents(cudaEvent_t *start, cudaEvent_t *stop){
 	CUDA_SAFE_CALL( cudaEventCreate(start) );
 	CUDA_SAFE_CALL( cudaEventCreate(stop) );
@@ -53,21 +61,57 @@ float finalizeEvents(cudaEvent_t start, cudaEvent_t stop){
 	return kernel_time;
 }*/
 
-/*void runbench_warmup(double *cd, long size){
+cl_kernel BuildKernel(cl_context context, cl_device_id dev_id, const char *source, const char *parameters){
+	cl_int errno;
+	const char **sources = &source;
+	cl_program program = clCreateProgramWithSource(context, 1, sources, NULL, &errno);
+	OCL_SAFE_CALL(errno);
+	if( clBuildProgram(program, 1, &dev_id, parameters, NULL, NULL) != CL_SUCCESS ){
+		size_t log_size;
+		OCL_SAFE_CALL( clGetProgramBuildInfo(program, dev_id, CL_PROGRAM_BUILD_LOG, 0, NULL, &log_size) );
+		char *log = (char*)alloca(log_size);
+		OCL_SAFE_CALL( clGetProgramBuildInfo(program, dev_id, CL_PROGRAM_BUILD_LOG, log_size, log, NULL) );
+		OCL_SAFE_CALL( clReleaseProgram(program) );
+		fprintf(stderr, "------------------------------------ Kernel compilation log ----------------------------------\n");
+		fprintf(stderr, "%s", log);
+		fprintf(stderr, "----------------------------------------------------------------------------------------------\n");
+		exit(EXIT_FAILURE);
+	}
+	// Kernel creation
+	cl_kernel kernel = clCreateKernel(program, "benchmark_func", &errno);
+	OCL_SAFE_CALL(errno);
+	return kernel;
+}
+
+void ReleaseKernelNProgram(cl_kernel kernel){
+	cl_program program_tmp;
+	OCL_SAFE_CALL( clGetKernelInfo(kernel, CL_KERNEL_PROGRAM, sizeof(program_tmp), &program_tmp, NULL) );
+	OCL_SAFE_CALL( clReleaseKernel(kernel) );
+	OCL_SAFE_CALL( clReleaseProgram(program_tmp) );
+}
+
+void runbench_warmup(cl_command_queue queue, cl_kernel kernel, cl_mem cbuffer, long size){
 	const long reduced_grid_size = size/(UNROLLED_MEMORY_ACCESSES)/32;
 	const int BLOCK_SIZE = 256;
-	const int shared_size = 0;
 
 	const size_t dimBlock[1] = {BLOCK_SIZE};
-	const size_t dimReducedGrid[1] = {reduced_grid_size};
+	const size_t dimReducedGrid[1] = {(size_t)reduced_grid_size};
 
-	benchmark_func< short, BLOCK_SIZE, 0, 0 ><<< dimReducedGrid, dimBlock, shared_size >>>((short)1, (short*)cd);
-	CUDA_SAFE_CALL( cudaGetLastError() );
-	CUDA_SAFE_CALL( cudaThreadSynchronize() );
-}*/
+	const float seed = 1.0f;
+	OCL_SAFE_CALL( clSetKernelArg(kernel, 0, sizeof(cl_float), &seed) ); //short
+	OCL_SAFE_CALL( clSetKernelArg(kernel, 1, sizeof(cl_mem), &cbuffer) );
+
+	cl_event event;
+	OCL_SAFE_CALL( clEnqueueNDRangeKernel(queue, kernel, 1, NULL, dimReducedGrid, dimBlock, 0, NULL, &event) );
+	OCL_SAFE_CALL( clWaitForEvents(1, &event) );
+	double runtime = get_event_duration(event);
+	OCL_SAFE_CALL( clReleaseEvent( event ) );
+printf("debug: runtime %f\n", runtime);
+	//benchmark_func< short, BLOCK_SIZE, 0, 0 ><<< dimReducedGrid, dimBlock, shared_size >>>((short)1, (short*)cd);
+}
 
 /*template<int memory_ratio>
-void runbench(double *cd, long size){
+void runbench(cl_mem cbuffer, long size){
 	if( memory_ratio>UNROLL_ITERATIONS ){
 		fprintf(stderr, "ERROR: memory_ratio exceeds UNROLL_ITERATIONS\n");
 		exit(1);
@@ -145,25 +189,15 @@ extern "C" void mixbenchGPU(cl_device_id dev_id, double *c, long size){
 		mapped_data[i] = 0;
 	clEnqueueUnmapMemObject(cmd_queue, c_buffer, mapped_data, 0, NULL, NULL);
 
-	// Load kernels
-	const char *c_kernel_source[1] = {ReadFile("mix_kernels.cl")};
-	puts(c_kernel_source[0]);
-
-	// Create program and all kernels
-	const char *build_options = "";
-	cl_program program = clCreateProgramWithSource(context, 1, c_kernel_source, NULL, &errno);
-	OCL_SAFE_CALL(errno);
-	if( clBuildProgram(program, 1, &dev_id, build_options, NULL, NULL) != CL_SUCCESS ){
-		size_t log_size;
-		OCL_SAFE_CALL( clGetProgramBuildInfo(program, dev_id, CL_PROGRAM_BUILD_LOG, 0, NULL, &log_size) );
-		char *log = (char*)alloca(log_size);
-		OCL_SAFE_CALL( clGetProgramBuildInfo(program, dev_id, CL_PROGRAM_BUILD_LOG, log_size, log, NULL) );
-		OCL_SAFE_CALL( clReleaseProgram(program) );
-		fprintf(stderr, "------------------------------------ Kernel compilation log ----------------------------------\n");
-		fprintf(stderr, "%s", log);
-		fprintf(stderr, "----------------------------------------------------------------------------------------------\n");
-		exit(EXIT_FAILURE);
-	}
+	// Load source, create program and all kernels
+	printf("Loading kernel file...\n");
+	const char c_param_format_str[] = "-cl-std=CL1.1 -Dclass_T=%s ";
+	char c_build_params[256];
+	sprintf(c_build_params, c_param_format_str, "float");
+	const char *c_kernel_source = {ReadFile("mix_kernels.cl")};
+	printf("Precompilation of kernels...\n");
+	cl_kernel kernel_warmup = BuildKernel(context, dev_id, c_kernel_source, c_build_params);
+	free((char*)c_kernel_source);
 
 	// Synchronize in order to wait for memory operations to finish
 	OCL_SAFE_CALL( clFinish(cmd_queue) );
@@ -172,7 +206,7 @@ extern "C" void mixbenchGPU(cl_device_id dev_id, double *c, long size){
 	printf("Operations ratio,  Single Precision ops,,,   Double precision ops,,,     Integer operations,, \n");
 	printf("  compute/memory,    Time,  GFLOPS, GB/sec,    Time,  GFLOPS, GB/sec,    Time,   GIOPS, GB/sec\n");
 
-//	runbench_warmup(cd, size);
+	runbench_warmup(cmd_queue, kernel_warmup, c_buffer, size);
 
 /*	runbench<32>(cd, size);
 	runbench<31>(cd, size);
@@ -215,8 +249,7 @@ extern "C" void mixbenchGPU(cl_device_id dev_id, double *c, long size){
 	//CUDA_SAFE_CALL( cudaMemcpy(c, cd, size*sizeof(double), cudaMemcpyDeviceToHost) );
 
 	// Release kernels and program
-	OCL_SAFE_CALL( clReleaseProgram(program) );
-	free((char*)c_kernel_source[0]);
+	ReleaseKernelNProgram(kernel_warmup);
 
 	// Release buffer
 	OCL_SAFE_CALL( clReleaseMemObject(c_buffer) );
