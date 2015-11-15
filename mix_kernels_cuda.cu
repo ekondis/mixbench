@@ -1,5 +1,5 @@
 /**
- * mix_kernels.cu: This file is part of the mixbench GPU micro-benchmark suite.
+ * mix_kernels_cuda.cu: This file is part of the mixbench GPU micro-benchmark suite.
  *
  * Contact: Elias Konstantinidis <ekondis@gmail.com>
  **/

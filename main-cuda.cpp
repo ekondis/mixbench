@@ -1,5 +1,5 @@
 /**
- * main.cpp: This file is part of the mixbench GPU micro-benchmark suite.
+ * main-cuda.cpp: This file is part of the mixbench GPU micro-benchmark suite.
  *
  * Contact: Elias Konstantinidis <ekondis@gmail.com>
  **/
@@ -11,7 +11,7 @@
 #include <cuda_runtime.h>
 #include <string.h>
 #include "lcutil.h"
-#include "mix_kernels.h"
+#include "mix_kernels_cuda.h"
 
 #define VECTOR_SIZE (32*1024*1024)
 
