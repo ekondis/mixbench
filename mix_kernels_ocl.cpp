@@ -164,6 +164,7 @@ void runbench(cl_command_queue queue, cl_kernel kernels[kdt_double+1][32+1], cl_
 		kernel_time_mad_int,
 		(computations_ratio*(double)computations)/kernel_time_mad_int*1000./(double)(1000*1000*1000),
 		(memaccesses_ratio*(double)memoryoperations*sizeof(int))/kernel_time_mad_int*1000./(1000.*1000.*1000.) );
+	printf("flops per byte: %f, %f, %f\n", (computations_ratio*(double)computations)/(memaccesses_ratio*(double)memoryoperations*sizeof(float)), (computations_ratio*(double)computations)/(memaccesses_ratio*(double)memoryoperations*sizeof(double)), (computations_ratio*(double)computations)/(memaccesses_ratio*(double)memoryoperations*sizeof(int)));
 }
 
 extern "C" void mixbenchGPU(cl_device_id dev_id, double *c, long size){
@@ -203,10 +204,11 @@ extern "C" void mixbenchGPU(cl_device_id dev_id, double *c, long size){
 	printf("Loading kernel file...\n");
 	const char c_param_format_str[] = "-cl-std=CL1.1 -Dclass_T=%s -Dblockdim=%d -Dmemory_ratio=%d -Dgriddim=%ld %s";
 	const char *c_block_strided = "-DBLOCK_STRIDED", *c_empty = "";
+	const char *c_striding = c_empty;
 	char c_build_params[256];
 	const char *c_kernel_source = {ReadFile("mix_kernels.cl")};
 	printf("Precompilation of kernels...\n");
-	sprintf(c_build_params, c_param_format_str, "short", BLOCK_SIZE, 0, 0l, c_block_strided);
+	sprintf(c_build_params, c_param_format_str, "short", BLOCK_SIZE, 0, 0l, c_striding);
 	//benchmark_func< short, BLOCK_SIZE, 0, 0 ><<< dimReducedGrid, dimBlock, shared_size >>>((short)1, (short*)cd);
 	cl_kernel kernel_warmup = BuildKernel(context, dev_id, c_kernel_source, c_build_params);
 
@@ -214,7 +216,7 @@ extern "C" void mixbenchGPU(cl_device_id dev_id, double *c, long size){
 
 	cl_kernel kernels[kdt_double+1][32+1];
 	for(int i=0; i<=32; i++){
-		sprintf(c_build_params, c_param_format_str, "float", BLOCK_SIZE, i, compute_grid_size, c_block_strided);
+		sprintf(c_build_params, c_param_format_str, "float", BLOCK_SIZE, i, compute_grid_size, c_striding);
 		printf("%s\n",c_build_params);
 		kernels[kdt_float][i] = BuildKernel(context, dev_id, c_kernel_source, c_build_params);
 		// ....
@@ -224,7 +226,7 @@ extern "C" void mixbenchGPU(cl_device_id dev_id, double *c, long size){
 	// Synchronize in order to wait for memory operations to finish
 	OCL_SAFE_CALL( clFinish(cmd_queue) );
 
-	printf("----------------------------------------- EXCEL data -----------------------------------------\n");
+	printf("----------------------------------------- CSV data -------------------------------------------\n");
 	printf("Operations ratio,  Single Precision ops,,,   Double precision ops,,,     Integer operations,, \n");
 	printf("  compute/memory,    Time,  GFLOPS, GB/sec,    Time,  GFLOPS, GB/sec,    Time,   GIOPS, GB/sec\n");
 
