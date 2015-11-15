@@ -8,5 +8,5 @@
 
 #include <CL/opencl.h>
 
-extern "C" void mixbenchGPU(cl_device_id, double*, long size);
+extern "C" void mixbenchGPU(cl_device_id, double*, long, bool);
 

@@ -1,3 +1,7 @@
+#if class_T == double
+	#pragma OPENCL EXTENSION cl_khr_fp64 : enable
+#endif
+
 #define COMP_ITERATIONS (8192)
 #define UNROLL_ITERATIONS (32)
 #define UNROLLED_MEMORY_ACCESSES (UNROLL_ITERATIONS/2)

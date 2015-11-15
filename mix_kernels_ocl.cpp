@@ -47,23 +47,6 @@ double get_event_duration(cl_event ev){
 	return time;
 }
 
-/*void initializeEvents(cudaEvent_t *start, cudaEvent_t *stop){
-	CUDA_SAFE_CALL( cudaEventCreate(start) );
-	CUDA_SAFE_CALL( cudaEventCreate(stop) );
-	CUDA_SAFE_CALL( cudaEventRecord(*start, 0) );
-}
-
-float finalizeEvents(cudaEvent_t start, cudaEvent_t stop){
-	CUDA_SAFE_CALL( cudaGetLastError() );
-	CUDA_SAFE_CALL( cudaEventRecord(stop, 0) );
-	CUDA_SAFE_CALL( cudaEventSynchronize(stop) );
-	float kernel_time;
-	CUDA_SAFE_CALL( cudaEventElapsedTime(&kernel_time, start, stop) );
-	CUDA_SAFE_CALL( cudaEventDestroy(start) );
-	CUDA_SAFE_CALL( cudaEventDestroy(stop) );
-	return kernel_time;
-}*/
-
 cl_kernel BuildKernel(cl_context context, cl_device_id dev_id, const char *source, const char *parameters){
 	cl_int errno;
 	const char **sources = &source;
@@ -103,12 +86,7 @@ void runbench_warmup(cl_command_queue queue, cl_kernel kernel, cl_mem cbuffer, l
 	OCL_SAFE_CALL( clSetKernelArg(kernel, 0, sizeof(cl_short), &seed) );
 	OCL_SAFE_CALL( clSetKernelArg(kernel, 1, sizeof(cl_mem), &cbuffer) );
 
-	cl_event event;
-	OCL_SAFE_CALL( clEnqueueNDRangeKernel(queue, kernel, 1, NULL, dimReducedGrid, dimBlock, 0, NULL, &event) );
-	OCL_SAFE_CALL( clWaitForEvents(1, &event) );
-	double runtime = get_event_duration(event);
-	OCL_SAFE_CALL( clReleaseEvent( event ) );
-printf("debug: runtime %f\n", runtime);
+	OCL_SAFE_CALL( clEnqueueNDRangeKernel(queue, kernel, 1, NULL, dimReducedGrid, dimBlock, 0, NULL, NULL) );
 }
 
 template<int memory_ratio>
@@ -137,8 +115,23 @@ void runbench(cl_command_queue queue, cl_kernel kernels[kdt_double+1][32+1], cl_
 	double kernel_time_mad_sp = get_event_duration(event);
 	OCL_SAFE_CALL( clReleaseEvent( event ) );
 
-	float kernel_time_mad_dp = -1.0;
-	float kernel_time_mad_int = -1.0;
+	const short seed_d = 1.0;
+	kernel = kernels[kdt_double][memory_ratio];
+	OCL_SAFE_CALL( clSetKernelArg(kernel, 0, sizeof(cl_double), &seed_d) );
+	OCL_SAFE_CALL( clSetKernelArg(kernel, 1, sizeof(cl_mem), &cbuffer) );
+	OCL_SAFE_CALL( clEnqueueNDRangeKernel(queue, kernel, 1, NULL, dimGrid, dimBlock, 0, NULL, &event) );
+	OCL_SAFE_CALL( clWaitForEvents(1, &event) );
+	double kernel_time_mad_dp = get_event_duration(event);
+	OCL_SAFE_CALL( clReleaseEvent( event ) );
+
+	const short seed_i = 1.0;
+	kernel = kernels[kdt_int][memory_ratio];
+	OCL_SAFE_CALL( clSetKernelArg(kernel, 0, sizeof(cl_int), &seed_i) );
+	OCL_SAFE_CALL( clSetKernelArg(kernel, 1, sizeof(cl_mem), &cbuffer) );
+	OCL_SAFE_CALL( clEnqueueNDRangeKernel(queue, kernel, 1, NULL, dimGrid, dimBlock, 0, NULL, &event) );
+	OCL_SAFE_CALL( clWaitForEvents(1, &event) );
+	double kernel_time_mad_int = get_event_duration(event);
+	OCL_SAFE_CALL( clReleaseEvent( event ) );
 //	benchmark_func< float, BLOCK_SIZE, memory_ratio, 0 ><<< dimGrid, dimBlock, 0 >>>(1.0f, (float*)cd);
 //	double kernel_time_mad_sp = finalizeEvents(start, stop);
 
@@ -167,12 +160,12 @@ void runbench(cl_command_queue queue, cl_kernel kernels[kdt_double+1][32+1], cl_
 //	printf("flops per byte: %6.3f, %6.3f, %6.3f\n", (computations_ratio*(double)computations)/(memaccesses_ratio*(double)memoryoperations*sizeof(float)), (computations_ratio*(double)computations)/(memaccesses_ratio*(double)memoryoperations*sizeof(double)), (computations_ratio*(double)computations)/(memaccesses_ratio*(double)memoryoperations*sizeof(int)));
 }
 
-extern "C" void mixbenchGPU(cl_device_id dev_id, double *c, long size){
-#ifdef BLOCK_STRIDED
-	const char *benchtype = "compute with global memory (block strided)";
-#else
-	const char *benchtype = "compute with global memory (grid strided)";
-#endif
+extern "C" void mixbenchGPU(cl_device_id dev_id, double *c, long size, bool block_strided){
+	const char *benchtype;
+	if(block_strided)
+		benchtype = "compute with global memory (block strided)";
+	else
+		benchtype = "compute with global memory (grid strided)";
 	printf("Trade-off type:%s\n", benchtype);
 
 	// Set context properties
@@ -204,24 +197,31 @@ extern "C" void mixbenchGPU(cl_device_id dev_id, double *c, long size){
 	printf("Loading kernel file...\n");
 	const char c_param_format_str[] = "-cl-std=CL1.1 -Dclass_T=%s -Dblockdim=%d -Dmemory_ratio=%d %s";
 	const char *c_block_strided = "-DBLOCK_STRIDED", *c_empty = "";
-	const char *c_striding = c_empty;
+	const char *c_striding = block_strided ? c_block_strided : c_empty;
 	char c_build_params[256];
 	const char *c_kernel_source = {ReadFile("mix_kernels.cl")};
 	printf("Precompilation of kernels...\n");
 	sprintf(c_build_params, c_param_format_str, "short", BLOCK_SIZE, 0, c_striding);
-	//benchmark_func< short, BLOCK_SIZE, 0, 0 ><<< dimReducedGrid, dimBlock, shared_size >>>((short)1, (short*)cd);
-	cl_kernel kernel_warmup = BuildKernel(context, dev_id, c_kernel_source, c_build_params);
 
-//	const long compute_grid_size = size/(UNROLLED_MEMORY_ACCESSES)/2;
+	cl_kernel kernel_warmup = BuildKernel(context, dev_id, c_kernel_source, c_build_params);
 
 	cl_kernel kernels[kdt_double+1][32+1];
 	for(int i=0; i<=32; i++){
 		sprintf(c_build_params, c_param_format_str, "float", BLOCK_SIZE, i, c_striding);
 		printf("%s\n",c_build_params);
 		kernels[kdt_float][i] = BuildKernel(context, dev_id, c_kernel_source, c_build_params);
-		// ....
+
+		sprintf(c_build_params, c_param_format_str, "int", BLOCK_SIZE, i, c_striding);
+		printf("%s\n",c_build_params);
+		kernels[kdt_int][i] = BuildKernel(context, dev_id, c_kernel_source, c_build_params);
+
+		sprintf(c_build_params, c_param_format_str, "double", BLOCK_SIZE, i, c_striding);
+		printf("%s\n",c_build_params);
+		kernels[kdt_double][i] = BuildKernel(context, dev_id, c_kernel_source, c_build_params);
 	}
 	free((char*)c_kernel_source);
+
+	runbench_warmup(cmd_queue, kernel_warmup, c_buffer, size);
 
 	// Synchronize in order to wait for memory operations to finish
 	OCL_SAFE_CALL( clFinish(cmd_queue) );
@@ -229,8 +229,6 @@ extern "C" void mixbenchGPU(cl_device_id dev_id, double *c, long size){
 	printf("----------------------------------------- CSV data -------------------------------------------\n");
 	printf("Operations ratio,  Single Precision ops,,,   Double precision ops,,,     Integer operations,, \n");
 	printf("  compute/memory, ex.time,  GFLOPS, GB/sec, ex.time,  GFLOPS, GB/sec, ex.time,   GIOPS, GB/sec\n");
-
-	runbench_warmup(cmd_queue, kernel_warmup, c_buffer, size);
 
 	runbench<32>(cmd_queue, kernels, c_buffer, size);
 	runbench<31>(cmd_queue, kernels, c_buffer, size);
@@ -276,7 +274,8 @@ extern "C" void mixbenchGPU(cl_device_id dev_id, double *c, long size){
 	ReleaseKernelNProgram(kernel_warmup);
 	for(int i=0; i<=32; i++){
 		ReleaseKernelNProgram(kernels[kdt_float][i]);
-		// ....
+		ReleaseKernelNProgram(kernels[kdt_int][i]);
+		ReleaseKernelNProgram(kernels[kdt_double][i]);
 	}
 
 	// Release buffer

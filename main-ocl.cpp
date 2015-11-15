@@ -11,8 +11,8 @@
 #include "loclutil.h"
 #include "mix_kernels_ocl.h"
 
-//#define VECTOR_SIZE (32*1024*1024)
-#define VECTOR_SIZE (16*1024*1024)
+#define VECTOR_SIZE (32*1024*1024)
+//#define VECTOR_SIZE (16*1024*1024)
 
 void init_vector(double *v, size_t datasize){
 	for(int i=0; i<(int)datasize; i++)
@@ -33,7 +33,7 @@ int main(int argc, char* argv[]) {
 	c = (double*)malloc(datasize);
 	init_vector(c, VECTOR_SIZE);
 
-	mixbenchGPU(dev_id, c, VECTOR_SIZE);
+	mixbenchGPU(dev_id, c, VECTOR_SIZE, true);
 
 	free(c);
 
