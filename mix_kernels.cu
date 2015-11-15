@@ -15,13 +15,13 @@
 
 #define UNROLLED_MEMORY_ACCESSES (UNROLL_ITERATIONS/2)
 
-template <class T, int blockdim, int memory_ratio, int griddim>
+template <class T, int blockdim, int memory_ratio>
 __global__ void benchmark_func(T seed, volatile T *g_data){
 #ifdef BLOCK_STRIDED
 	const int index_stride = blockdim;
 	const int index_base = blockIdx.x*blockdim*UNROLLED_MEMORY_ACCESSES + threadIdx.x;
 #else
-	const int grid_size = blockdim * (griddim == 0 ? gridDim.x : griddim);
+	const int grid_size = blockdim * gridDim.x;
 	const int globaltid = blockIdx.x * blockdim + threadIdx.x;
 	const int index_stride = grid_size;
 	const int index_base = globaltid;
@@ -91,12 +91,11 @@ void runbench_warmup(double *cd, long size){
 	const long reduced_grid_size = size/(UNROLLED_MEMORY_ACCESSES)/32;
 	const int BLOCK_SIZE = 256;
 	const int TOTAL_REDUCED_BLOCKS = reduced_grid_size/BLOCK_SIZE;
-	const int shared_size = 0;
 
 	dim3 dimBlock(BLOCK_SIZE, 1, 1);
 	dim3 dimReducedGrid(TOTAL_REDUCED_BLOCKS, 1, 1);
 
-	benchmark_func< short, BLOCK_SIZE, 0, 0 ><<< dimReducedGrid, dimBlock, shared_size >>>((short)1, (short*)cd);
+	benchmark_func< short, BLOCK_SIZE, 0 ><<< dimReducedGrid, dimBlock >>>((short)1, (short*)cd);
 	CUDA_SAFE_CALL( cudaGetLastError() );
 	CUDA_SAFE_CALL( cudaThreadSynchronize() );
 }
@@ -117,18 +116,17 @@ void runbench(double *cd, long size){
 	dim3 dimBlock(BLOCK_SIZE, 1, 1);
     dim3 dimGrid(TOTAL_BLOCKS, 1, 1);
 	cudaEvent_t start, stop;
-	const int shared_count = 0;
 
 	initializeEvents(&start, &stop);
-	benchmark_func< float, BLOCK_SIZE, memory_ratio, 0 ><<< dimGrid, dimBlock, shared_count*sizeof(float) >>>(1.0f, (float*)cd);
+	benchmark_func< float, BLOCK_SIZE, memory_ratio ><<< dimGrid, dimBlock >>>(1.0f, (float*)cd);
 	float kernel_time_mad_sp = finalizeEvents(start, stop);
 
 	initializeEvents(&start, &stop);
-	benchmark_func< double, BLOCK_SIZE, memory_ratio, 0 ><<< dimGrid, dimBlock, shared_count*sizeof(double) >>>(1.0, cd);
+	benchmark_func< double, BLOCK_SIZE, memory_ratio ><<< dimGrid, dimBlock >>>(1.0, cd);
 	float kernel_time_mad_dp = finalizeEvents(start, stop);
 
 	initializeEvents(&start, &stop);
-	benchmark_func< int, BLOCK_SIZE, memory_ratio, 0 ><<< dimGrid, dimBlock, shared_count*sizeof(int) >>>(1, (int*)cd);
+	benchmark_func< int, BLOCK_SIZE, memory_ratio ><<< dimGrid, dimBlock >>>(1, (int*)cd);
 	float kernel_time_mad_int = finalizeEvents(start, stop);
 
 	const double memaccesses_ratio = (double)(memory_ratio)/UNROLL_ITERATIONS;
@@ -164,7 +162,7 @@ extern "C" void mixbenchGPU(double *c, long size){
 	// Synchronize in order to wait for memory operations to finish
 	CUDA_SAFE_CALL( cudaThreadSynchronize() );
 
-	printf("----------------------------------------- EXCEL data -----------------------------------------\n");
+	printf("----------------------------------------- CSV data -------------------------------------------\n");
 	printf("Operations ratio,  Single Precision ops,,,   Double precision ops,,,     Integer operations,, \n");
 	printf("  compute/memory,    Time,  GFLOPS, GB/sec,    Time,  GFLOPS, GB/sec,    Time,   GIOPS, GB/sec\n");
 
