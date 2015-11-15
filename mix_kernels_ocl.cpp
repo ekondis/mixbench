@@ -16,6 +16,7 @@
 #define UNROLLED_MEMORY_ACCESSES (UNROLL_ITERATIONS/2)
 
 const int BLOCK_SIZE = 256;
+enum KrnDataType{ kdt_int, kdt_float, kdt_double };
 
 char* ReadFile(const char *filename){
 	char *buffer = NULL;
@@ -42,7 +43,7 @@ double get_event_duration(cl_event ev){
 	cl_ulong ev_t_start, ev_t_finish;
 	OCL_SAFE_CALL( clGetEventProfilingInfo(ev, CL_PROFILING_COMMAND_START, sizeof(cl_ulong), &ev_t_start, NULL) );
 	OCL_SAFE_CALL( clGetEventProfilingInfo(ev, CL_PROFILING_COMMAND_END, sizeof(cl_ulong), &ev_t_finish, NULL) );
-	double time = (ev_t_finish-ev_t_start)/1000000000.0;
+	double time = (ev_t_finish-ev_t_start)/1000000.0;
 	return time;
 }
 
@@ -99,7 +100,7 @@ void runbench_warmup(cl_command_queue queue, cl_kernel kernel, cl_mem cbuffer, l
 	const size_t dimReducedGrid[1] = {(size_t)reduced_grid_size};
 
 	const short seed = 1;
-	OCL_SAFE_CALL( clSetKernelArg(kernel, 0, sizeof(cl_short), &seed) ); //short
+	OCL_SAFE_CALL( clSetKernelArg(kernel, 0, sizeof(cl_short), &seed) );
 	OCL_SAFE_CALL( clSetKernelArg(kernel, 1, sizeof(cl_mem), &cbuffer) );
 
 	cl_event event;
@@ -110,34 +111,44 @@ void runbench_warmup(cl_command_queue queue, cl_kernel kernel, cl_mem cbuffer, l
 printf("debug: runtime %f\n", runtime);
 }
 
-/*template<int memory_ratio>
-void runbench(cl_mem cbuffer, long size){
+template<int memory_ratio>
+void runbench(cl_command_queue queue, cl_kernel kernels[kdt_double+1][32+1], cl_mem cbuffer, long size){
 	if( memory_ratio>UNROLL_ITERATIONS ){
 		fprintf(stderr, "ERROR: memory_ratio exceeds UNROLL_ITERATIONS\n");
 		exit(1);
 	}
-		
+
 	const long compute_grid_size = size/(UNROLLED_MEMORY_ACCESSES)/2;
-	const int TOTAL_BLOCKS = compute_grid_size/BLOCK_SIZE;
+	
 	const long long computations = 2*(long long)(COMP_ITERATIONS)*REGBLOCK_SIZE*compute_grid_size;
 	const long long memoryoperations = (long long)(COMP_ITERATIONS)*compute_grid_size;
 
-	dim3 dimBlock(BLOCK_SIZE, 1, 1);
-    dim3 dimGrid(TOTAL_BLOCKS, 1, 1);
-	cudaEvent_t start, stop;
-	const int shared_count = 0;
+	const size_t dimBlock[1] = {BLOCK_SIZE};
+	const size_t dimGrid[1] = {(size_t)compute_grid_size};
 
-	initializeEvents(&start, &stop);
-	benchmark_func< float, BLOCK_SIZE, memory_ratio, 0 ><<< dimGrid, dimBlock, shared_count*sizeof(float) >>>(1.0f, (float*)cd);
-	float kernel_time_mad_sp = finalizeEvents(start, stop);
+	cl_event event;
+	
+	const short seed_f = 1.0f;
+	cl_kernel kernel = kernels[kdt_float][memory_ratio];
+	OCL_SAFE_CALL( clSetKernelArg(kernel, 0, sizeof(cl_float), &seed_f) );
+	OCL_SAFE_CALL( clSetKernelArg(kernel, 1, sizeof(cl_mem), &cbuffer) );
+	OCL_SAFE_CALL( clEnqueueNDRangeKernel(queue, kernel, 1, NULL, dimGrid, dimBlock, 0, NULL, &event) );
+	OCL_SAFE_CALL( clWaitForEvents(1, &event) );
+	double kernel_time_mad_sp = get_event_duration(event);
+	OCL_SAFE_CALL( clReleaseEvent( event ) );
 
-	initializeEvents(&start, &stop);
-	benchmark_func< double, BLOCK_SIZE, memory_ratio, 0 ><<< dimGrid, dimBlock, shared_count*sizeof(double) >>>(1.0, cd);
+	float kernel_time_mad_dp = -1.0;
+	float kernel_time_mad_int = -1.0;
+//	benchmark_func< float, BLOCK_SIZE, memory_ratio, 0 ><<< dimGrid, dimBlock, 0 >>>(1.0f, (float*)cd);
+//	double kernel_time_mad_sp = finalizeEvents(start, stop);
+
+/*	initializeEvents(&start, &stop);
+	benchmark_func< double, BLOCK_SIZE, memory_ratio, 0 ><<< dimGrid, dimBlock, 0 >>>(1.0, cd);
 	float kernel_time_mad_dp = finalizeEvents(start, stop);
 
 	initializeEvents(&start, &stop);
-	benchmark_func< int, BLOCK_SIZE, memory_ratio, 0 ><<< dimGrid, dimBlock, shared_count*sizeof(int) >>>(1, (int*)cd);
-	float kernel_time_mad_int = finalizeEvents(start, stop);
+	benchmark_func< int, BLOCK_SIZE, memory_ratio, 0 ><<< dimGrid, dimBlock, 0 >>>(1, (int*)cd);
+	float kernel_time_mad_int = finalizeEvents(start, stop);*/
 
 	const double memaccesses_ratio = (double)(memory_ratio)/UNROLL_ITERATIONS;
 	const double computations_ratio = 1.0-memaccesses_ratio;
@@ -153,7 +164,7 @@ void runbench(cl_mem cbuffer, long size){
 		kernel_time_mad_int,
 		(computations_ratio*(double)computations)/kernel_time_mad_int*1000./(double)(1000*1000*1000),
 		(memaccesses_ratio*(double)memoryoperations*sizeof(int))/kernel_time_mad_int*1000./(1000.*1000.*1000.) );
-}*/
+}
 
 extern "C" void mixbenchGPU(cl_device_id dev_id, double *c, long size){
 #ifdef BLOCK_STRIDED
@@ -198,6 +209,16 @@ extern "C" void mixbenchGPU(cl_device_id dev_id, double *c, long size){
 	sprintf(c_build_params, c_param_format_str, "short", BLOCK_SIZE, 0, 0l, c_block_strided);
 	//benchmark_func< short, BLOCK_SIZE, 0, 0 ><<< dimReducedGrid, dimBlock, shared_size >>>((short)1, (short*)cd);
 	cl_kernel kernel_warmup = BuildKernel(context, dev_id, c_kernel_source, c_build_params);
+
+	const long compute_grid_size = size/(UNROLLED_MEMORY_ACCESSES)/2;
+
+	cl_kernel kernels[kdt_double+1][32+1];
+	for(int i=0; i<=32; i++){
+		sprintf(c_build_params, c_param_format_str, "float", BLOCK_SIZE, i, compute_grid_size, c_block_strided);
+		printf("%s\n",c_build_params);
+		kernels[kdt_float][i] = BuildKernel(context, dev_id, c_kernel_source, c_build_params);
+		// ....
+	}
 	free((char*)c_kernel_source);
 
 	// Synchronize in order to wait for memory operations to finish
@@ -209,48 +230,52 @@ extern "C" void mixbenchGPU(cl_device_id dev_id, double *c, long size){
 
 	runbench_warmup(cmd_queue, kernel_warmup, c_buffer, size);
 
-/*	runbench<32>(cd, size);
-	runbench<31>(cd, size);
-	runbench<30>(cd, size);
-	runbench<29>(cd, size);
-	runbench<28>(cd, size);
-	runbench<27>(cd, size);
-	runbench<26>(cd, size);
-	runbench<25>(cd, size);
-	runbench<24>(cd, size);
-	runbench<23>(cd, size);
-	runbench<22>(cd, size);
-	runbench<21>(cd, size);
-	runbench<20>(cd, size);
-	runbench<19>(cd, size);
-	runbench<18>(cd, size);
-	runbench<17>(cd, size);
-	runbench<16>(cd, size);
-	runbench<15>(cd, size);
-	runbench<14>(cd, size);
-	runbench<13>(cd, size);
-	runbench<12>(cd, size);
-	runbench<11>(cd, size);
-	runbench<10>(cd, size);
-	runbench<9>(cd, size);
-	runbench<8>(cd, size);
-	runbench<7>(cd, size);
-	runbench<6>(cd, size);
-	runbench<5>(cd, size);
-	runbench<4>(cd, size);
-	runbench<3>(cd, size);
-	runbench<2>(cd, size);
-	runbench<1>(cd, size);
-	runbench<0>(cd, size);*/
+	runbench<32>(cmd_queue, kernels, c_buffer, size);
+	runbench<31>(cmd_queue, kernels, c_buffer, size);
+	runbench<30>(cmd_queue, kernels, c_buffer, size);
+	runbench<29>(cmd_queue, kernels, c_buffer, size);
+	runbench<28>(cmd_queue, kernels, c_buffer, size);
+	runbench<27>(cmd_queue, kernels, c_buffer, size);
+	runbench<26>(cmd_queue, kernels, c_buffer, size);
+	runbench<25>(cmd_queue, kernels, c_buffer, size);
+	runbench<24>(cmd_queue, kernels, c_buffer, size);
+	runbench<23>(cmd_queue, kernels, c_buffer, size);
+	runbench<22>(cmd_queue, kernels, c_buffer, size);
+	runbench<21>(cmd_queue, kernels, c_buffer, size);
+	runbench<20>(cmd_queue, kernels, c_buffer, size);
+	runbench<19>(cmd_queue, kernels, c_buffer, size);
+	runbench<18>(cmd_queue, kernels, c_buffer, size);
+	runbench<17>(cmd_queue, kernels, c_buffer, size);
+	runbench<16>(cmd_queue, kernels, c_buffer, size);
+	runbench<15>(cmd_queue, kernels, c_buffer, size);
+	runbench<14>(cmd_queue, kernels, c_buffer, size);
+	runbench<13>(cmd_queue, kernels, c_buffer, size);
+	runbench<12>(cmd_queue, kernels, c_buffer, size);
+	runbench<11>(cmd_queue, kernels, c_buffer, size);
+	runbench<10>(cmd_queue, kernels, c_buffer, size);
+	runbench<9>(cmd_queue, kernels, c_buffer, size);
+	runbench<8>(cmd_queue, kernels, c_buffer, size);
+	runbench<7>(cmd_queue, kernels, c_buffer, size);
+	runbench<6>(cmd_queue, kernels, c_buffer, size);
+	runbench<5>(cmd_queue, kernels, c_buffer, size);
+	runbench<4>(cmd_queue, kernels, c_buffer, size);
+	runbench<3>(cmd_queue, kernels, c_buffer, size);
+	runbench<2>(cmd_queue, kernels, c_buffer, size);
+	runbench<1>(cmd_queue, kernels, c_buffer, size);
+	runbench<0>(cmd_queue, kernels, c_buffer, size);
 
 	printf("----------------------------------------------------------------------------------------------\n");
 
 	// Copy results back to host memory
-	OCL_SAFE_CALL( clEnqueueReadBuffer(cmd_queue, c_buffer, CL_TRUE, 0, size*sizeof(double), 	c, 	0, NULL, NULL) );
+	OCL_SAFE_CALL( clEnqueueReadBuffer(cmd_queue, c_buffer, CL_TRUE, 0, size*sizeof(double), c, 0, NULL, NULL) );
 	//CUDA_SAFE_CALL( cudaMemcpy(c, cd, size*sizeof(double), cudaMemcpyDeviceToHost) );
 
 	// Release kernels and program
 	ReleaseKernelNProgram(kernel_warmup);
+	for(int i=0; i<=32; i++){
+		ReleaseKernelNProgram(kernels[kdt_float][i]);
+		// ....
+	}
 
 	// Release buffer
 	OCL_SAFE_CALL( clReleaseMemObject(c_buffer) );
