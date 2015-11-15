@@ -15,6 +15,8 @@
 
 #define UNROLLED_MEMORY_ACCESSES (UNROLL_ITERATIONS/2)
 
+const int BLOCK_SIZE = 256;
+
 char* ReadFile(const char *filename){
 	char *buffer = NULL;
 	int file_size, read_size;
@@ -92,13 +94,12 @@ void ReleaseKernelNProgram(cl_kernel kernel){
 
 void runbench_warmup(cl_command_queue queue, cl_kernel kernel, cl_mem cbuffer, long size){
 	const long reduced_grid_size = size/(UNROLLED_MEMORY_ACCESSES)/32;
-	const int BLOCK_SIZE = 256;
 
 	const size_t dimBlock[1] = {BLOCK_SIZE};
 	const size_t dimReducedGrid[1] = {(size_t)reduced_grid_size};
 
-	const float seed = 1.0f;
-	OCL_SAFE_CALL( clSetKernelArg(kernel, 0, sizeof(cl_float), &seed) ); //short
+	const short seed = 1;
+	OCL_SAFE_CALL( clSetKernelArg(kernel, 0, sizeof(cl_short), &seed) ); //short
 	OCL_SAFE_CALL( clSetKernelArg(kernel, 1, sizeof(cl_mem), &cbuffer) );
 
 	cl_event event;
@@ -107,7 +108,6 @@ void runbench_warmup(cl_command_queue queue, cl_kernel kernel, cl_mem cbuffer, l
 	double runtime = get_event_duration(event);
 	OCL_SAFE_CALL( clReleaseEvent( event ) );
 printf("debug: runtime %f\n", runtime);
-	//benchmark_func< short, BLOCK_SIZE, 0, 0 ><<< dimReducedGrid, dimBlock, shared_size >>>((short)1, (short*)cd);
 }
 
 /*template<int memory_ratio>
@@ -118,7 +118,6 @@ void runbench(cl_mem cbuffer, long size){
 	}
 		
 	const long compute_grid_size = size/(UNROLLED_MEMORY_ACCESSES)/2;
-	const int BLOCK_SIZE = 256;
 	const int TOTAL_BLOCKS = compute_grid_size/BLOCK_SIZE;
 	const long long computations = 2*(long long)(COMP_ITERATIONS)*REGBLOCK_SIZE*compute_grid_size;
 	const long long memoryoperations = (long long)(COMP_ITERATIONS)*compute_grid_size;
@@ -191,11 +190,13 @@ extern "C" void mixbenchGPU(cl_device_id dev_id, double *c, long size){
 
 	// Load source, create program and all kernels
 	printf("Loading kernel file...\n");
-	const char c_param_format_str[] = "-cl-std=CL1.1 -Dclass_T=%s ";
+	const char c_param_format_str[] = "-cl-std=CL1.1 -Dclass_T=%s -Dblockdim=%d -Dmemory_ratio=%d -Dgriddim=%ld %s";
+	const char *c_block_strided = "-DBLOCK_STRIDED", *c_empty = "";
 	char c_build_params[256];
-	sprintf(c_build_params, c_param_format_str, "float");
 	const char *c_kernel_source = {ReadFile("mix_kernels.cl")};
 	printf("Precompilation of kernels...\n");
+	sprintf(c_build_params, c_param_format_str, "short", BLOCK_SIZE, 0, 0l, c_block_strided);
+	//benchmark_func< short, BLOCK_SIZE, 0, 0 ><<< dimReducedGrid, dimBlock, shared_size >>>((short)1, (short*)cd);
 	cl_kernel kernel_warmup = BuildKernel(context, dev_id, c_kernel_source, c_build_params);
 	free((char*)c_kernel_source);
 
