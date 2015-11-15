@@ -2,12 +2,13 @@
 #define UNROLL_ITERATIONS (32)
 #define UNROLLED_MEMORY_ACCESSES (UNROLL_ITERATIONS/2)
 
-__kernel void benchmark_func(class_T seed, global volatile class_T *g_data){
+__kernel __attribute__((reqd_work_group_size(blockdim, 1, 1)))
+void benchmark_func(class_T seed, global volatile class_T *g_data){
 #ifdef BLOCK_STRIDED
 	const int index_stride = blockdim;
 	const int index_base = get_group_id(0) * blockdim * UNROLLED_MEMORY_ACCESSES + get_local_id(0);
 #else
-	const int grid_size = blockdim * (griddim == 0 ? get_num_groups(0) : griddim);
+	const int grid_size = blockdim * get_num_groups(0);
 	const int globaltid = get_global_id(0);
 	const int index_stride = grid_size;
 	const int index_base = globaltid;
