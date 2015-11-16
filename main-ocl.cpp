@@ -63,19 +63,20 @@ bool argument_parsing(int argc, char* argv[], ArgParams *output){
 
 int main(int argc, char* argv[]) {
 	printf("mixbench-ocl (compute & memory balancing GPU microbenchmark)\n");
-	printf("Use -h argument for options\n\n");
 
 	ArgParams args = {1, false, 256, DEF_VECTOR_SIZE/(1024*1024)};
 	if( !argument_parsing(argc, argv, &args) ){
-		printf("Usage: mixbench-ocl [options] {device index} [workgroup size [vector width(1024^2)]]\n");
+		printf("Usage: mixbench-ocl [options] [device index [workgroup size [vector width(1024^2)]]]\n");
 		printf("Options:\n"
 			"-h or --help            Show this message\n"
-			"-b or --block-strided   Use host allocated buffer (CL_MEM_ALLOC_HOST_PTR)\n"
-			"\n\n");
+			"-b or --block-strided   Workitem strides equal to the width of a workgroup length (default: NDRange length)\n"
+			"\n");
 
 		GetDeviceID(0, stdout);
 		exit(1);
 	}
+
+	printf("Use \"-h\" argument to see available options\n");
 	
 	const size_t VEC_WIDTH = 1024*1024*args.vecwidth;
 	unsigned int datasize = VEC_WIDTH*sizeof(double);
