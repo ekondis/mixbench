@@ -4,8 +4,10 @@
  * Contact: Elias Konstantinidis <ekondis@gmail.com>
  **/
 
-#include <stdio.h>
-//#include <math_constants.h>
+#include <cstdio>
+#include <cstdarg>
+#include <cstring>
+#define CL_USE_DEPRECATED_OPENCL_2_0_APIS
 #include "loclutil.h"
 #include "timestamp.h"
 
@@ -37,6 +39,33 @@ char* ReadFile(const char *filename){
 		buffer = NULL;
 	}
 	return buffer;
+}
+
+void flushed_printf(const char* format, ...){
+	va_list args;
+	va_start(args, format);
+	vprintf(format, args);
+	va_end(args);
+	fflush(stdout);
+}
+
+void show_progress_init(int length){
+	flushed_printf("[");
+	for(int i=0; i<length; i++)
+		flushed_printf(" ");
+	flushed_printf("]");
+	for(int i=0; i<=length; i++)
+		flushed_printf("\b");
+}
+
+void show_progress_step(int domove, char newchar){
+	flushed_printf("%c", newchar);
+	if( !domove )
+		flushed_printf("\b");
+}
+
+void show_progress_done(void){
+	flushed_printf("\n");
 }
 
 double get_event_duration(cl_event ev){
@@ -116,13 +145,17 @@ void runbench(cl_command_queue queue, cl_kernel kernels[kdt_double+1][32+1], cl_
 	OCL_SAFE_CALL( clReleaseEvent( event ) );
 
 	const short seed_d = 1.0;
+	double kernel_time_mad_dp;
 	kernel = kernels[kdt_double][memory_ratio];
-	OCL_SAFE_CALL( clSetKernelArg(kernel, 0, sizeof(cl_double), &seed_d) );
-	OCL_SAFE_CALL( clSetKernelArg(kernel, 1, sizeof(cl_mem), &cbuffer) );
-	OCL_SAFE_CALL( clEnqueueNDRangeKernel(queue, kernel, 1, NULL, dimGrid, dimBlock, 0, NULL, &event) );
-	OCL_SAFE_CALL( clWaitForEvents(1, &event) );
-	double kernel_time_mad_dp = get_event_duration(event);
-	OCL_SAFE_CALL( clReleaseEvent( event ) );
+	if( kernel ){
+		OCL_SAFE_CALL( clSetKernelArg(kernel, 0, sizeof(cl_double), &seed_d) );
+		OCL_SAFE_CALL( clSetKernelArg(kernel, 1, sizeof(cl_mem), &cbuffer) );
+		OCL_SAFE_CALL( clEnqueueNDRangeKernel(queue, kernel, 1, NULL, dimGrid, dimBlock, 0, NULL, &event) );
+		OCL_SAFE_CALL( clWaitForEvents(1, &event) );
+		kernel_time_mad_dp = get_event_duration(event);
+		OCL_SAFE_CALL( clReleaseEvent( event ) );
+	} else 
+		kernel_time_mad_dp = 0.0;
 
 	const short seed_i = 1.0;
 	kernel = kernels[kdt_int][memory_ratio];
@@ -170,7 +203,12 @@ extern "C" void mixbenchGPU(cl_device_id dev_id, double *c, long size, bool bloc
 
 	// Set context properties
 	cl_platform_id p_id;
-	OCL_SAFE_CALL( clGetDeviceInfo(dev_id, CL_DEVICE_PLATFORM, sizeof(p_id), &p_id,	NULL) );
+	OCL_SAFE_CALL( clGetDeviceInfo(dev_id, CL_DEVICE_PLATFORM, sizeof(p_id), &p_id, NULL) );
+	size_t length;
+	OCL_SAFE_CALL( clGetDeviceInfo(dev_id, CL_DEVICE_EXTENSIONS, 0, NULL, &length) );
+	char *extensions = (char*)alloca(length);
+	OCL_SAFE_CALL( clGetDeviceInfo(dev_id, CL_DEVICE_EXTENSIONS, length, extensions, NULL) );
+	bool enable_dp = strstr(extensions, "cl_khr_fp64") != NULL;
 
 	cl_context_properties ctxProps[] = { CL_CONTEXT_PLATFORM, (cl_context_properties)p_id, 0 };
 
@@ -194,31 +232,41 @@ extern "C" void mixbenchGPU(cl_device_id dev_id, double *c, long size, bool bloc
 	clEnqueueUnmapMemObject(cmd_queue, c_buffer, mapped_data, 0, NULL, NULL);
 
 	// Load source, create program and all kernels
-	printf("Loading kernel file...\n");
-	const char c_param_format_str[] = "-cl-std=CL1.1 -Dclass_T=%s -Dblockdim=%d -Dmemory_ratio=%d %s";
-	const char *c_block_strided = "-DBLOCK_STRIDED", *c_empty = "";
-	const char *c_striding = block_strided ? c_block_strided : c_empty;
+	printf("Loading kernel source file...\n");
+	const char c_param_format_str[] = "-cl-std=CL1.1 -Dclass_T=%s -Dblockdim=%d -Dmemory_ratio=%d %s %s";
+	const char *c_empty = "";
+	const char *c_striding = block_strided ? "-DBLOCK_STRIDED" : c_empty;
+	const char *c_enable_dp = "-DENABLE_DP";
 	char c_build_params[256];
 	const char *c_kernel_source = {ReadFile("mix_kernels.cl")};
-	printf("Precompilation of kernels...\n");
-	sprintf(c_build_params, c_param_format_str, "short", BLOCK_SIZE, 0, c_striding);
+	printf("Precompilation of kernels... ");
+	sprintf(c_build_params, c_param_format_str, "short", BLOCK_SIZE, 0, c_striding, c_empty);
 
 	cl_kernel kernel_warmup = BuildKernel(context, dev_id, c_kernel_source, c_build_params);
 
+	show_progress_init(32+1);
 	cl_kernel kernels[kdt_double+1][32+1];
 	for(int i=0; i<=32; i++){
-		sprintf(c_build_params, c_param_format_str, "float", BLOCK_SIZE, i, c_striding);
-		printf("%s\n",c_build_params);
+		show_progress_step(0, '\\');
+		sprintf(c_build_params, c_param_format_str, "float", BLOCK_SIZE, i, c_striding, c_empty);
+		//printf("%s\n",c_build_params);
 		kernels[kdt_float][i] = BuildKernel(context, dev_id, c_kernel_source, c_build_params);
 
-		sprintf(c_build_params, c_param_format_str, "int", BLOCK_SIZE, i, c_striding);
-		printf("%s\n",c_build_params);
+		show_progress_step(0, '|');
+		sprintf(c_build_params, c_param_format_str, "int", BLOCK_SIZE, i, c_striding, c_empty);
+		//printf("%s\n",c_build_params);
 		kernels[kdt_int][i] = BuildKernel(context, dev_id, c_kernel_source, c_build_params);
 
-		sprintf(c_build_params, c_param_format_str, "double", BLOCK_SIZE, i, c_striding);
-		printf("%s\n",c_build_params);
-		kernels[kdt_double][i] = BuildKernel(context, dev_id, c_kernel_source, c_build_params);
+		if( enable_dp ){
+			show_progress_step(0, '/');
+			sprintf(c_build_params, c_param_format_str, "double", BLOCK_SIZE, i, c_striding, c_enable_dp);
+			//printf("%s\n",c_build_params);
+			kernels[kdt_double][i] = BuildKernel(context, dev_id, c_kernel_source, c_build_params);
+		} else
+			kernels[kdt_double][i] = 0;
+		show_progress_step(1, '>');
 	}
+	show_progress_done();
 	free((char*)c_kernel_source);
 
 	runbench_warmup(cmd_queue, kernel_warmup, c_buffer, size);
@@ -275,7 +323,8 @@ extern "C" void mixbenchGPU(cl_device_id dev_id, double *c, long size, bool bloc
 	for(int i=0; i<=32; i++){
 		ReleaseKernelNProgram(kernels[kdt_float][i]);
 		ReleaseKernelNProgram(kernels[kdt_int][i]);
-		ReleaseKernelNProgram(kernels[kdt_double][i]);
+		if( enable_dp )
+			ReleaseKernelNProgram(kernels[kdt_double][i]);
 	}
 
 	// Release buffer
