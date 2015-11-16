@@ -4,36 +4,98 @@
  * Contact: Elias Konstantinidis <ekondis@gmail.com>
  **/
 
-#include <stdio.h>
-#include <stdlib.h>
+#include <cstdio>
+#include <cstdlib>
 #include "timestamp.h"
-#include <string.h>
+#include <cstring>
 #include "loclutil.h"
 #include "mix_kernels_ocl.h"
 
-#define VECTOR_SIZE (32*1024*1024)
-//#define VECTOR_SIZE (16*1024*1024)
+//#define DEF_VECTOR_SIZE (32*1024*1024)
+#define DEF_VECTOR_SIZE (16*1024*1024)
+
+typedef struct{
+	int device_index;
+	bool block_strided;
+	int wg_size;
+	unsigned int vecwidth;
+} ArgParams;
 
 void init_vector(double *v, size_t datasize){
 	for(int i=0; i<(int)datasize; i++)
 		v[i] = i;
 }
 
+// Argument parsing
+// returns whether program execution should continue (true) or just print help output (false)
+bool argument_parsing(int argc, char* argv[], ArgParams *output){
+	int arg_count = 0;
+	for(int i=1; i<argc; i++) {
+		if( (strcmp(argv[i], "-h")==0) || (strcmp(argv[i], "--help")==0) ) {
+			return false;
+		} else if( (strcmp(argv[i], "-b")==0) || (strcmp(argv[i], "--block-strided")==0) ) {
+			output->block_strided = true;
+		} else {
+			unsigned long value = strtoul(argv[i], NULL, 10);
+			switch( arg_count ){
+				// device selection
+				case 0:
+					output->device_index = value;
+					arg_count++;
+					break;
+				// workgroup size
+				case 1:
+					output->wg_size = value;
+					arg_count++;
+					break;
+				// vector width (x1024^2)
+				case 2:
+					output->vecwidth = value;
+					arg_count++;
+					break;
+				default:
+					return false;
+			}
+		}
+	}
+	return true;
+}
+
 int main(int argc, char* argv[]) {
 	printf("mixbench-ocl (compute & memory balancing GPU microbenchmark)\n");
+	printf("Use -h argument for options\n\n");
 
-	unsigned int datasize = VECTOR_SIZE*sizeof(double);
+	ArgParams args = {1, false, 256, DEF_VECTOR_SIZE/(1024*1024)};
+	if( !argument_parsing(argc, argv, &args) ){
+		printf("Usage: mixbench-ocl [options] {device index} [workgroup size [vector width(1024^2)]]\n");
+		printf("Options:\n"
+			"-h or --help            Show this message\n"
+			"-b or --block-strided   Use host allocated buffer (CL_MEM_ALLOC_HOST_PTR)\n"
+			"\n\n");
 
-	cl_device_id dev_id = GetDeviceID();
+		GetDeviceID(0, stdout);
+		exit(1);
+	}
+	
+	const size_t VEC_WIDTH = 1024*1024*args.vecwidth;
+	unsigned int datasize = VEC_WIDTH*sizeof(double);
+
+	cl_device_id dev_id = GetDeviceID(args.device_index, NULL);
+
+	if( dev_id == NULL ){
+		fprintf(stderr, "Error: No OpenCL device selected\n");
+		exit(1);
+	}
 	StoreDeviceInfo(dev_id, stdout);
 
 	printf("Buffer size: %dMB\n", datasize/(1024*1024));
+	printf("Workgroup size: %d\n", args.wg_size);
 	
 	double *c;
 	c = (double*)malloc(datasize);
-	init_vector(c, VECTOR_SIZE);
+	init_vector(c, VEC_WIDTH);
 
-	mixbenchGPU(dev_id, c, VECTOR_SIZE, true);
+	mixbenchGPU(dev_id, c, VEC_WIDTH, args.block_strided, args.wg_size);
 
 	free(c);
 

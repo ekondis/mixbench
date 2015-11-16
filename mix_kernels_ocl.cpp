@@ -17,7 +17,6 @@
 
 #define UNROLLED_MEMORY_ACCESSES (UNROLL_ITERATIONS/2)
 
-const int BLOCK_SIZE = 256;
 enum KrnDataType{ kdt_int, kdt_float, kdt_double };
 
 char* ReadFile(const char *filename){
@@ -105,10 +104,10 @@ void ReleaseKernelNProgram(cl_kernel kernel){
 	OCL_SAFE_CALL( clReleaseProgram(program_tmp) );
 }
 
-void runbench_warmup(cl_command_queue queue, cl_kernel kernel, cl_mem cbuffer, long size){
+void runbench_warmup(cl_command_queue queue, cl_kernel kernel, cl_mem cbuffer, long size, size_t workgroupsize){
 	const long reduced_grid_size = size/(UNROLLED_MEMORY_ACCESSES)/32;
 
-	const size_t dimBlock[1] = {BLOCK_SIZE};
+	const size_t dimBlock[1] = {workgroupsize};
 	const size_t dimReducedGrid[1] = {(size_t)reduced_grid_size};
 
 	const short seed = 1;
@@ -119,7 +118,7 @@ void runbench_warmup(cl_command_queue queue, cl_kernel kernel, cl_mem cbuffer, l
 }
 
 template<int memory_ratio>
-void runbench(cl_command_queue queue, cl_kernel kernels[kdt_double+1][32+1], cl_mem cbuffer, long size){
+void runbench(cl_command_queue queue, cl_kernel kernels[kdt_double+1][32+1], cl_mem cbuffer, long size, size_t workgroupsize){
 	if( memory_ratio>UNROLL_ITERATIONS ){
 		fprintf(stderr, "ERROR: memory_ratio exceeds UNROLL_ITERATIONS\n");
 		exit(1);
@@ -130,7 +129,7 @@ void runbench(cl_command_queue queue, cl_kernel kernels[kdt_double+1][32+1], cl_
 	const long long computations = 2*(long long)(COMP_ITERATIONS)*REGBLOCK_SIZE*compute_grid_size;
 	const long long memoryoperations = (long long)(COMP_ITERATIONS)*compute_grid_size;
 
-	const size_t dimBlock[1] = {BLOCK_SIZE};
+	const size_t dimBlock[1] = {workgroupsize};
 	const size_t dimGrid[1] = {(size_t)compute_grid_size};
 
 	cl_event event;
@@ -193,7 +192,7 @@ void runbench(cl_command_queue queue, cl_kernel kernels[kdt_double+1][32+1], cl_
 //	printf("flops per byte: %6.3f, %6.3f, %6.3f\n", (computations_ratio*(double)computations)/(memaccesses_ratio*(double)memoryoperations*sizeof(float)), (computations_ratio*(double)computations)/(memaccesses_ratio*(double)memoryoperations*sizeof(double)), (computations_ratio*(double)computations)/(memaccesses_ratio*(double)memoryoperations*sizeof(int)));
 }
 
-extern "C" void mixbenchGPU(cl_device_id dev_id, double *c, long size, bool block_strided){
+extern "C" void mixbenchGPU(cl_device_id dev_id, double *c, long size, bool block_strided, size_t workgroupsize){
 	const char *benchtype;
 	if(block_strided)
 		benchtype = "compute with global memory (block strided)";
@@ -233,14 +232,14 @@ extern "C" void mixbenchGPU(cl_device_id dev_id, double *c, long size, bool bloc
 
 	// Load source, create program and all kernels
 	printf("Loading kernel source file...\n");
-	const char c_param_format_str[] = "-cl-std=CL1.1 -Dclass_T=%s -Dblockdim=%d -Dmemory_ratio=%d %s %s";
+	const char c_param_format_str[] = "-cl-std=CL1.1 -Dclass_T=%s -Dblockdim=%zu -Dmemory_ratio=%d %s %s";
 	const char *c_empty = "";
 	const char *c_striding = block_strided ? "-DBLOCK_STRIDED" : c_empty;
 	const char *c_enable_dp = "-DENABLE_DP";
 	char c_build_params[256];
 	const char *c_kernel_source = {ReadFile("mix_kernels.cl")};
 	printf("Precompilation of kernels... ");
-	sprintf(c_build_params, c_param_format_str, "short", BLOCK_SIZE, 0, c_striding, c_empty);
+	sprintf(c_build_params, c_param_format_str, "short", workgroupsize, 0, c_striding, c_empty);
 
 	cl_kernel kernel_warmup = BuildKernel(context, dev_id, c_kernel_source, c_build_params);
 
@@ -248,18 +247,18 @@ extern "C" void mixbenchGPU(cl_device_id dev_id, double *c, long size, bool bloc
 	cl_kernel kernels[kdt_double+1][32+1];
 	for(int i=0; i<=32; i++){
 		show_progress_step(0, '\\');
-		sprintf(c_build_params, c_param_format_str, "float", BLOCK_SIZE, i, c_striding, c_empty);
+		sprintf(c_build_params, c_param_format_str, "float", workgroupsize, i, c_striding, c_empty);
 		//printf("%s\n",c_build_params);
 		kernels[kdt_float][i] = BuildKernel(context, dev_id, c_kernel_source, c_build_params);
 
 		show_progress_step(0, '|');
-		sprintf(c_build_params, c_param_format_str, "int", BLOCK_SIZE, i, c_striding, c_empty);
+		sprintf(c_build_params, c_param_format_str, "int", workgroupsize, i, c_striding, c_empty);
 		//printf("%s\n",c_build_params);
 		kernels[kdt_int][i] = BuildKernel(context, dev_id, c_kernel_source, c_build_params);
 
 		if( enable_dp ){
 			show_progress_step(0, '/');
-			sprintf(c_build_params, c_param_format_str, "double", BLOCK_SIZE, i, c_striding, c_enable_dp);
+			sprintf(c_build_params, c_param_format_str, "double", workgroupsize, i, c_striding, c_enable_dp);
 			//printf("%s\n",c_build_params);
 			kernels[kdt_double][i] = BuildKernel(context, dev_id, c_kernel_source, c_build_params);
 		} else
@@ -269,7 +268,7 @@ extern "C" void mixbenchGPU(cl_device_id dev_id, double *c, long size, bool bloc
 	show_progress_done();
 	free((char*)c_kernel_source);
 
-	runbench_warmup(cmd_queue, kernel_warmup, c_buffer, size);
+	runbench_warmup(cmd_queue, kernel_warmup, c_buffer, size, workgroupsize);
 
 	// Synchronize in order to wait for memory operations to finish
 	OCL_SAFE_CALL( clFinish(cmd_queue) );
@@ -278,39 +277,39 @@ extern "C" void mixbenchGPU(cl_device_id dev_id, double *c, long size, bool bloc
 	printf("Operations ratio,  Single Precision ops,,,   Double precision ops,,,     Integer operations,, \n");
 	printf("  compute/memory, ex.time,  GFLOPS, GB/sec, ex.time,  GFLOPS, GB/sec, ex.time,   GIOPS, GB/sec\n");
 
-	runbench<32>(cmd_queue, kernels, c_buffer, size);
-	runbench<31>(cmd_queue, kernels, c_buffer, size);
-	runbench<30>(cmd_queue, kernels, c_buffer, size);
-	runbench<29>(cmd_queue, kernels, c_buffer, size);
-	runbench<28>(cmd_queue, kernels, c_buffer, size);
-	runbench<27>(cmd_queue, kernels, c_buffer, size);
-	runbench<26>(cmd_queue, kernels, c_buffer, size);
-	runbench<25>(cmd_queue, kernels, c_buffer, size);
-	runbench<24>(cmd_queue, kernels, c_buffer, size);
-	runbench<23>(cmd_queue, kernels, c_buffer, size);
-	runbench<22>(cmd_queue, kernels, c_buffer, size);
-	runbench<21>(cmd_queue, kernels, c_buffer, size);
-	runbench<20>(cmd_queue, kernels, c_buffer, size);
-	runbench<19>(cmd_queue, kernels, c_buffer, size);
-	runbench<18>(cmd_queue, kernels, c_buffer, size);
-	runbench<17>(cmd_queue, kernels, c_buffer, size);
-	runbench<16>(cmd_queue, kernels, c_buffer, size);
-	runbench<15>(cmd_queue, kernels, c_buffer, size);
-	runbench<14>(cmd_queue, kernels, c_buffer, size);
-	runbench<13>(cmd_queue, kernels, c_buffer, size);
-	runbench<12>(cmd_queue, kernels, c_buffer, size);
-	runbench<11>(cmd_queue, kernels, c_buffer, size);
-	runbench<10>(cmd_queue, kernels, c_buffer, size);
-	runbench<9>(cmd_queue, kernels, c_buffer, size);
-	runbench<8>(cmd_queue, kernels, c_buffer, size);
-	runbench<7>(cmd_queue, kernels, c_buffer, size);
-	runbench<6>(cmd_queue, kernels, c_buffer, size);
-	runbench<5>(cmd_queue, kernels, c_buffer, size);
-	runbench<4>(cmd_queue, kernels, c_buffer, size);
-	runbench<3>(cmd_queue, kernels, c_buffer, size);
-	runbench<2>(cmd_queue, kernels, c_buffer, size);
-	runbench<1>(cmd_queue, kernels, c_buffer, size);
-	runbench<0>(cmd_queue, kernels, c_buffer, size);
+	runbench<32>(cmd_queue, kernels, c_buffer, size, workgroupsize);
+	runbench<31>(cmd_queue, kernels, c_buffer, size, workgroupsize);
+	runbench<30>(cmd_queue, kernels, c_buffer, size, workgroupsize);
+	runbench<29>(cmd_queue, kernels, c_buffer, size, workgroupsize);
+	runbench<28>(cmd_queue, kernels, c_buffer, size, workgroupsize);
+	runbench<27>(cmd_queue, kernels, c_buffer, size, workgroupsize);
+	runbench<26>(cmd_queue, kernels, c_buffer, size, workgroupsize);
+	runbench<25>(cmd_queue, kernels, c_buffer, size, workgroupsize);
+	runbench<24>(cmd_queue, kernels, c_buffer, size, workgroupsize);
+	runbench<23>(cmd_queue, kernels, c_buffer, size, workgroupsize);
+	runbench<22>(cmd_queue, kernels, c_buffer, size, workgroupsize);
+	runbench<21>(cmd_queue, kernels, c_buffer, size, workgroupsize);
+	runbench<20>(cmd_queue, kernels, c_buffer, size, workgroupsize);
+	runbench<19>(cmd_queue, kernels, c_buffer, size, workgroupsize);
+	runbench<18>(cmd_queue, kernels, c_buffer, size, workgroupsize);
+	runbench<17>(cmd_queue, kernels, c_buffer, size, workgroupsize);
+	runbench<16>(cmd_queue, kernels, c_buffer, size, workgroupsize);
+	runbench<15>(cmd_queue, kernels, c_buffer, size, workgroupsize);
+	runbench<14>(cmd_queue, kernels, c_buffer, size, workgroupsize);
+	runbench<13>(cmd_queue, kernels, c_buffer, size, workgroupsize);
+	runbench<12>(cmd_queue, kernels, c_buffer, size, workgroupsize);
+	runbench<11>(cmd_queue, kernels, c_buffer, size, workgroupsize);
+	runbench<10>(cmd_queue, kernels, c_buffer, size, workgroupsize);
+	runbench<9>(cmd_queue, kernels, c_buffer, size, workgroupsize);
+	runbench<8>(cmd_queue, kernels, c_buffer, size, workgroupsize);
+	runbench<7>(cmd_queue, kernels, c_buffer, size, workgroupsize);
+	runbench<6>(cmd_queue, kernels, c_buffer, size, workgroupsize);
+	runbench<5>(cmd_queue, kernels, c_buffer, size, workgroupsize);
+	runbench<4>(cmd_queue, kernels, c_buffer, size, workgroupsize);
+	runbench<3>(cmd_queue, kernels, c_buffer, size, workgroupsize);
+	runbench<2>(cmd_queue, kernels, c_buffer, size, workgroupsize);
+	runbench<1>(cmd_queue, kernels, c_buffer, size, workgroupsize);
+	runbench<0>(cmd_queue, kernels, c_buffer, size, workgroupsize);
 
 	printf("----------------------------------------------------------------------------------------------\n");
 
