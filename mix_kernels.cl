@@ -1,4 +1,4 @@
-#if class_T == double
+#ifdef ENABLE_DP
 	#pragma OPENCL EXTENSION cl_khr_fp64 : enable
 #endif
 
