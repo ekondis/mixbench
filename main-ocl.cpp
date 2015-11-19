@@ -11,8 +11,7 @@
 #include "loclutil.h"
 #include "mix_kernels_ocl.h"
 
-//#define DEF_VECTOR_SIZE (32*1024*1024)
-#define DEF_VECTOR_SIZE (16*1024*1024)
+#define DEF_VECTOR_SIZE (32*1024*1024)
 
 typedef struct{
 	int device_index;
@@ -33,7 +32,7 @@ bool argument_parsing(int argc, char* argv[], ArgParams *output){
 	for(int i=1; i<argc; i++) {
 		if( (strcmp(argv[i], "-h")==0) || (strcmp(argv[i], "--help")==0) ) {
 			return false;
-		} else if( (strcmp(argv[i], "-b")==0) || (strcmp(argv[i], "--block-strided")==0) ) {
+		} else if( (strcmp(argv[i], "-w")==0) || (strcmp(argv[i], "--workgroup-stride")==0) ) {
 			output->block_strided = true;
 		} else {
 			unsigned long value = strtoul(argv[i], NULL, 10);
@@ -48,7 +47,7 @@ bool argument_parsing(int argc, char* argv[], ArgParams *output){
 					output->wg_size = value;
 					arg_count++;
 					break;
-				// vector width (x1024^2)
+				// array size (x1024^2)
 				case 2:
 					output->vecwidth = value;
 					arg_count++;
@@ -66,10 +65,10 @@ int main(int argc, char* argv[]) {
 
 	ArgParams args = {1, false, 256, DEF_VECTOR_SIZE/(1024*1024)};
 	if( !argument_parsing(argc, argv, &args) ){
-		printf("Usage: mixbench-ocl [options] [device index [workgroup size [vector width(1024^2)]]]\n");
-		printf("Options:\n"
-			"-h or --help            Show this message\n"
-			"-b or --block-strided   Workitem strides equal to the width of a workgroup length (default: NDRange length)\n"
+		printf("Usage: mixbench-ocl [options] [device index [workgroup size [array size(1024^2)]]]\n");
+		printf("\nOptions:\n"
+			"  -h or --help              Show this message\n"
+			"  -w or --workgroup-stride  Workitem strides equal to the width of a workgroup length (default: NDRange length)\n"
 			"\n");
 
 		GetDeviceID(0, stdout);

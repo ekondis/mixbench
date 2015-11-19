@@ -40,7 +40,7 @@ inline cl_device_id GetDeviceID(int index, FILE *fout){
 		for(int d=0; d<(int)cnt_device_ids; d++){
 			if( fout ){
 				OCL_SAFE_CALL( clGetDeviceInfo(device_ids[d], CL_DEVICE_NAME, sizeof(dev_name), dev_name, NULL) );
-				fprintf(fout, "%d. %s\n", cur_dev_idx, dev_name);
+				fprintf(fout, "  %d. %s\n", cur_dev_idx, dev_name);
 			}
 			if( cur_dev_idx==index )
 				device_selected = device_ids[d];
