@@ -178,18 +178,19 @@ void runbench(cl_command_queue queue, cl_kernel kernels[kdt_double+1][32+1], cl_
 	const double memaccesses_ratio = (double)(memory_ratio)/UNROLL_ITERATIONS;
 	const double computations_ratio = 1.0-memaccesses_ratio;
 
-	printf("      %2d/%2d,     %8.2f,%8.2f,%7.2f,%8.2f,%8.2f,%7.2f,%8.2f,%8.2f,%7.2f\n", 
-		UNROLL_ITERATIONS-memory_ratio, memory_ratio,
+	printf("    %6.3f,%8.2f,%8.2f,%7.2f,     %6.3f,%8.2f,%8.2f,%7.2f,    %6.3f,%8.2f,%8.2f,%7.2f\n", 
+		(computations_ratio*(double)computations)/(memaccesses_ratio*(double)memoryoperations*sizeof(float)),
 		kernel_time_mad_sp,
 		(computations_ratio*(double)computations)/kernel_time_mad_sp*1000./(double)(1000*1000*1000),
 		(memaccesses_ratio*(double)memoryoperations*sizeof(float))/kernel_time_mad_sp*1000./(1000.*1000.*1000.),
+		(computations_ratio*(double)computations)/(memaccesses_ratio*(double)memoryoperations*sizeof(double)),
 		kernel_time_mad_dp,
 		(computations_ratio*(double)computations)/kernel_time_mad_dp*1000./(double)(1000*1000*1000),
 		(memaccesses_ratio*(double)memoryoperations*sizeof(double))/kernel_time_mad_dp*1000./(1000.*1000.*1000.),
+		(computations_ratio*(double)computations)/(memaccesses_ratio*(double)memoryoperations*sizeof(int)),
 		kernel_time_mad_int,
 		(computations_ratio*(double)computations)/kernel_time_mad_int*1000./(double)(1000*1000*1000),
 		(memaccesses_ratio*(double)memoryoperations*sizeof(int))/kernel_time_mad_int*1000./(1000.*1000.*1000.) );
-//	printf("flops per byte: %6.3f, %6.3f, %6.3f\n", (computations_ratio*(double)computations)/(memaccesses_ratio*(double)memoryoperations*sizeof(float)), (computations_ratio*(double)computations)/(memaccesses_ratio*(double)memoryoperations*sizeof(double)), (computations_ratio*(double)computations)/(memaccesses_ratio*(double)memoryoperations*sizeof(int)));
 }
 
 extern "C" void mixbenchGPU(cl_device_id dev_id, double *c, long size, bool block_strided, size_t workgroupsize){
@@ -273,9 +274,9 @@ extern "C" void mixbenchGPU(cl_device_id dev_id, double *c, long size, bool bloc
 	// Synchronize in order to wait for memory operations to finish
 	OCL_SAFE_CALL( clFinish(cmd_queue) );
 
-	printf("----------------------------------------- CSV data -------------------------------------------\n");
-	printf("Operations ratio,  Single Precision ops,,,   Double precision ops,,,     Integer operations,, \n");
-	printf("  compute/memory, ex.time,  GFLOPS, GB/sec, ex.time,  GFLOPS, GB/sec, ex.time,   GIOPS, GB/sec\n");
+	printf("--------------------------------------------------- CSV data --------------------------------------------------\n");
+	printf("Single Precision ops,,,,              Double precision ops,,,,              Integer operations,,, \n");
+	printf("Flops/byte, ex.time,  GFLOPS, GB/sec, Flops/byte, ex.time,  GFLOPS, GB/sec, Iops/byte, ex.time,   GIOPS, GB/sec\n");
 
 	runbench<32>(cmd_queue, kernels, c_buffer, size, workgroupsize);
 	runbench<31>(cmd_queue, kernels, c_buffer, size, workgroupsize);
@@ -311,11 +312,10 @@ extern "C" void mixbenchGPU(cl_device_id dev_id, double *c, long size, bool bloc
 	runbench<1>(cmd_queue, kernels, c_buffer, size, workgroupsize);
 	runbench<0>(cmd_queue, kernels, c_buffer, size, workgroupsize);
 
-	printf("----------------------------------------------------------------------------------------------\n");
+	printf("---------------------------------------------------------------------------------------------------------------\n");
 
 	// Copy results back to host memory
 	OCL_SAFE_CALL( clEnqueueReadBuffer(cmd_queue, c_buffer, CL_TRUE, 0, size*sizeof(double), c, 0, NULL, NULL) );
-	//CUDA_SAFE_CALL( cudaMemcpy(c, cd, size*sizeof(double), cudaMemcpyDeviceToHost) );
 
 	// Release kernels and program
 	ReleaseKernelNProgram(kernel_warmup);
