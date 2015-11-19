@@ -196,10 +196,10 @@ void runbench(cl_command_queue queue, cl_kernel kernels[kdt_double+1][32+1], cl_
 extern "C" void mixbenchGPU(cl_device_id dev_id, double *c, long size, bool block_strided, size_t workgroupsize){
 	const char *benchtype;
 	if(block_strided)
-		benchtype = "compute with global memory (block strided)";
+		benchtype = "Workgroup";
 	else
-		benchtype = "compute with global memory (grid strided)";
-	printf("Trade-off type:%s\n", benchtype);
+		benchtype = "NDRange";
+	printf("Workitem stride:%s\n", benchtype);
 
 	// Set context properties
 	cl_platform_id p_id;
