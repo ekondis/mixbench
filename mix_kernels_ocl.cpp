@@ -17,6 +17,12 @@
 
 #define UNROLLED_MEMORY_ACCESSES (UNROLL_ITERATIONS/2)
 
+#if defined(_MSC_VER)
+#define SIZE_T_FORMAT "%lu"
+#else
+#define SIZE_T_FORMAT "%zu"
+#endif
+
 enum KrnDataType{ kdt_int, kdt_float, kdt_double };
 
 char* ReadFile(const char *filename){
@@ -80,7 +86,9 @@ cl_kernel BuildKernel(cl_context context, cl_device_id dev_id, const char *sourc
 	const char **sources = &source;
 	cl_program program = clCreateProgramWithSource(context, 1, sources, NULL, &errno);
 	OCL_SAFE_CALL(errno);
-	if( clBuildProgram(program, 1, &dev_id, parameters, NULL, NULL) != CL_SUCCESS ){
+	errno = clBuildProgram(program, 1, &dev_id, parameters, NULL, NULL);
+	if( errno != CL_SUCCESS ){
+		fprintf(stderr, "Program built error code: %d\n", errno);
 		size_t log_size;
 		OCL_SAFE_CALL( clGetProgramBuildInfo(program, dev_id, CL_PROGRAM_BUILD_LOG, 0, NULL, &log_size) );
 		char *log = (char*)alloca(log_size);
@@ -233,7 +241,7 @@ extern "C" void mixbenchGPU(cl_device_id dev_id, double *c, long size, bool bloc
 
 	// Load source, create program and all kernels
 	printf("Loading kernel source file...\n");
-	const char c_param_format_str[] = "-cl-std=CL1.1 -Dclass_T=%s -Dblockdim=%zu -Dmemory_ratio=%d %s %s";
+	const char c_param_format_str[] = "-cl-std=CL1.1 -Dclass_T=%s -Dblockdim=" SIZE_T_FORMAT " -Dmemory_ratio=%d %s %s";
 	const char *c_empty = "";
 	const char *c_striding = block_strided ? "-DBLOCK_STRIDED" : c_empty;
 	const char *c_enable_dp = "-DENABLE_DP";
