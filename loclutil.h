@@ -11,6 +11,11 @@
 #include <cstdlib>
 #include <CL/opencl.h>
 
+#if defined(_MSC_VER)
+#include <malloc.h>
+#define alloca _alloca
+#endif
+
 #define OCL_SAFE_CALL(call) {                                                \
     cl_int err = call;                                                       \
     if( CL_SUCCESS != err) {                                                 \
