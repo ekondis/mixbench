@@ -172,16 +172,6 @@ void runbench(cl_command_queue queue, cl_kernel kernels[kdt_double+1][32+1], cl_
 	OCL_SAFE_CALL( clWaitForEvents(1, &event) );
 	double kernel_time_mad_int = get_event_duration(event);
 	OCL_SAFE_CALL( clReleaseEvent( event ) );
-//	benchmark_func< float, BLOCK_SIZE, memory_ratio, 0 ><<< dimGrid, dimBlock, 0 >>>(1.0f, (float*)cd);
-//	double kernel_time_mad_sp = finalizeEvents(start, stop);
-
-/*	initializeEvents(&start, &stop);
-	benchmark_func< double, BLOCK_SIZE, memory_ratio, 0 ><<< dimGrid, dimBlock, 0 >>>(1.0, cd);
-	float kernel_time_mad_dp = finalizeEvents(start, stop);
-
-	initializeEvents(&start, &stop);
-	benchmark_func< int, BLOCK_SIZE, memory_ratio, 0 ><<< dimGrid, dimBlock, 0 >>>(1, (int*)cd);
-	float kernel_time_mad_int = finalizeEvents(start, stop);*/
 
 	const double memaccesses_ratio = (double)(memory_ratio)/UNROLL_ITERATIONS;
 	const double computations_ratio = 1.0-memaccesses_ratio;
