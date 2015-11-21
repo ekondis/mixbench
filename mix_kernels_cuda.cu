@@ -132,14 +132,16 @@ void runbench(double *cd, long size){
 	const double memaccesses_ratio = (double)(memory_ratio)/UNROLL_ITERATIONS;
 	const double computations_ratio = 1.0-memaccesses_ratio;
 
-	printf("      %2d/%2d,     %8.2f,%8.2f,%7.2f,%8.2f,%8.2f,%7.2f,%8.2f,%8.2f,%7.2f\n", 
-		UNROLL_ITERATIONS-memory_ratio, memory_ratio,
+	printf("    %6.3f,%8.2f,%8.2f,%7.2f,     %6.3f,%8.2f,%8.2f,%7.2f,    %6.3f,%8.2f,%8.2f,%7.2f\n", 
+		(computations_ratio*(double)computations)/(memaccesses_ratio*(double)memoryoperations*sizeof(float)),
 		kernel_time_mad_sp,
 		(computations_ratio*(double)computations)/kernel_time_mad_sp*1000./(double)(1000*1000*1000),
 		(memaccesses_ratio*(double)memoryoperations*sizeof(float))/kernel_time_mad_sp*1000./(1000.*1000.*1000.),
+		(computations_ratio*(double)computations)/(memaccesses_ratio*(double)memoryoperations*sizeof(double)),
 		kernel_time_mad_dp,
 		(computations_ratio*(double)computations)/kernel_time_mad_dp*1000./(double)(1000*1000*1000),
 		(memaccesses_ratio*(double)memoryoperations*sizeof(double))/kernel_time_mad_dp*1000./(1000.*1000.*1000.),
+		(computations_ratio*(double)computations)/(memaccesses_ratio*(double)memoryoperations*sizeof(int)),
 		kernel_time_mad_int,
 		(computations_ratio*(double)computations)/kernel_time_mad_int*1000./(double)(1000*1000*1000),
 		(memaccesses_ratio*(double)memoryoperations*sizeof(int))/kernel_time_mad_int*1000./(1000.*1000.*1000.) );
@@ -162,9 +164,9 @@ extern "C" void mixbenchGPU(double *c, long size){
 	// Synchronize in order to wait for memory operations to finish
 	CUDA_SAFE_CALL( cudaThreadSynchronize() );
 
-	printf("----------------------------------------- CSV data -------------------------------------------\n");
-	printf("Operations ratio,  Single Precision ops,,,   Double precision ops,,,     Integer operations,, \n");
-	printf("  compute/memory,    Time,  GFLOPS, GB/sec,    Time,  GFLOPS, GB/sec,    Time,   GIOPS, GB/sec\n");
+	printf("--------------------------------------------------- CSV data --------------------------------------------------\n");
+	printf("Single Precision ops,,,,              Double precision ops,,,,              Integer operations,,, \n");
+	printf("Flops/byte, ex.time,  GFLOPS, GB/sec, Flops/byte, ex.time,  GFLOPS, GB/sec, Iops/byte, ex.time,   GIOPS, GB/sec\n");
 
 	runbench_warmup(cd, size);
 
@@ -202,7 +204,7 @@ extern "C" void mixbenchGPU(double *c, long size){
 	runbench<1>(cd, size);
 	runbench<0>(cd, size);
 
-	printf("----------------------------------------------------------------------------------------------\n");
+	printf("---------------------------------------------------------------------------------------------------------------\n");
 
 	// Copy results back to host memory
 	CUDA_SAFE_CALL( cudaMemcpy(c, cd, size*sizeof(double), cudaMemcpyDeviceToHost) );
