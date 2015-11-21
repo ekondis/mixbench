@@ -13,10 +13,13 @@ Three types of experiments are executed combined with global memory accesses:
 Building program
 --------------
 
-In order to build the program you should make sure that the following variable in "Makefile" is set to the CUDA installation directory:
+In order to build the program you should make sure that the following variables in "Makefile" is set to the CUDA/OpenCL installation directory:
 
 ```
 CUDA_INSTALL_PATH = /usr/local/cuda
+OCL_INSTALL_PATH = /opt/AMDAPPSDK
+OCL_INC_PATH = ${OCL_INSTALL_PATH}/include
+OCL_LIB_PATH = ${OCL_INSTALL_PATH}/lib/x86_64
 ```
 
 Afterwards, just do make:
