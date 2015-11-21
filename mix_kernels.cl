@@ -57,6 +57,6 @@ void benchmark_func(class_T seed, global volatile class_T *g_data){
 			array_index = index_base;
 	}
 	if( (r0==(class_T)INFINITY) && (r1==(class_T)INFINITY) && (r2==(class_T)INFINITY) && (r3==(class_T)INFINITY) ){ // extremely unlikely to happen
-		g_data[0] = r0+r1+r2+r3; 
+		g_data[0] = seed; 
 	}
 }
