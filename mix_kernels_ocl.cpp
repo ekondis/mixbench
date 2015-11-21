@@ -207,7 +207,7 @@ extern "C" void mixbenchGPU(cl_device_id dev_id, double *c, long size, bool bloc
 		benchtype = "Workgroup";
 	else
 		benchtype = "NDRange";
-	printf("Workitem stride:%s\n", benchtype);
+	printf("Workitem stride: %s\n", benchtype);
 
 	// Set context properties
 	cl_platform_id p_id;
