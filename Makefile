@@ -12,7 +12,7 @@ BITS = $(shell getconf LONG_BIT)
 ifeq (${BITS},64)
 	LIBSUFFIX_CUDA := 64
 endif
-LFLAGS_CUDA = -L${CUDA_INSTALL_PATH}/lib${LIBSUFFIX} -lm -lstdc++ -lcudart -lrt
+LFLAGS_CUDA = -L${CUDA_INSTALL_PATH}/lib${LIBSUFFIX_CUDA} -lm -lstdc++ -lcudart -lrt
 LFLAGS_OCL = -L${OCL_LIB_PATH} -lm -lstdc++ -lOpenCL -lrt
 NVCODE = -gencode=arch=compute_20,code=\"compute_20\"
 #NVCODE = -gencode=arch=compute_52,code=\"compute_52\" -gencode=arch=compute_30,code=\"compute_30\" -gencode=arch=compute_20,code=\"compute_20\"
