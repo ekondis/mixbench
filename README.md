@@ -18,9 +18,13 @@ In order to build the program you should make sure that the following variables 
 ```
 CUDA_INSTALL_PATH = /usr/local/cuda
 OCL_INSTALL_PATH = /opt/AMDAPPSDK
+CUDA_INC_PATH = ${CUDA_INSTALL_PATH}/include
+CUDA_LIB_PATH = ${CUDA_INSTALL_PATH}/lib64
 OCL_INC_PATH = ${OCL_INSTALL_PATH}/include
 OCL_LIB_PATH = ${OCL_INSTALL_PATH}/lib/x86_64
 ```
+
+*CUDA_INSTALL_PATH* is required to locate nvcc compiler, *CUDA_INC_PATH* should point to the CUDA headers include path, *CUDA_LIB_PATH* should point to the CUDA libraries, *OCL_INC_PATH* should point to the OpenCL header file and *OCL_LIB_PATH* should point to the OpenCL library. *OCL_INSTALL_PATH* is not required to point at any particular SDK as long as the header and library can be located.
 
 Afterwards, just do make:
 

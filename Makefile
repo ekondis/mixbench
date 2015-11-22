@@ -1,18 +1,17 @@
 CUDA_INSTALL_PATH = /usr/local/cuda
 OCL_INSTALL_PATH = /opt/AMDAPPSDK
+CUDA_INC_PATH = ${CUDA_INSTALL_PATH}/include
+CUDA_LIB_PATH = ${CUDA_INSTALL_PATH}/lib64
 OCL_INC_PATH = ${OCL_INSTALL_PATH}/include
 OCL_LIB_PATH = ${OCL_INSTALL_PATH}/lib/x86_64
 CC = g++
 OPTFLAG = -O2
 NVCC = ${CUDA_INSTALL_PATH}/bin/nvcc
-FLAGS_CUDA = ${OPTFLAG} -I${CUDA_INSTALL_PATH}/include -Wall
+FLAGS_CUDA = ${OPTFLAG} -I${CUDA_INC_PATH} -Wall
 FLAGS_OCL = ${OPTFLAG} -I${OCL_INC_PATH} -Wall
-NVFLAGS = -O2 -I${CUDA_INSTALL_PATH}/include --compiler-options -fno-strict-aliasing --ptxas-options=-v -Xptxas -dlcm=cg
+NVFLAGS = -O2 -I${CUDA_INC_PATH} --compiler-options -fno-strict-aliasing --ptxas-options=-v -Xptxas -dlcm=cg
 BITS = $(shell getconf LONG_BIT)
-ifeq (${BITS},64)
-	LIBSUFFIX_CUDA := 64
-endif
-LFLAGS_CUDA = -L${CUDA_INSTALL_PATH}/lib${LIBSUFFIX_CUDA} -lm -lstdc++ -lcudart -lrt
+LFLAGS_CUDA = -L${CUDA_LIB_PATH} -lm -lstdc++ -lcudart -lrt
 LFLAGS_OCL = -L${OCL_LIB_PATH} -lm -lstdc++ -lOpenCL -lrt
 NVCODE = -gencode=arch=compute_20,code=\"compute_20\"
 #NVCODE = -gencode=arch=compute_52,code=\"compute_52\" -gencode=arch=compute_30,code=\"compute_30\" -gencode=arch=compute_20,code=\"compute_20\"
