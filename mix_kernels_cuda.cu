@@ -7,7 +7,6 @@
 #include <stdio.h>
 #include <math_constants.h>
 #include "lcutil.h"
-#include "timestamp.h"
 
 #define COMP_ITERATIONS (8192)
 #define UNROLL_ITERATIONS (32)

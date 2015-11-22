@@ -6,7 +6,6 @@
 
 #include <cstdio>
 #include <cstdlib>
-#include "timestamp.h"
 #include <cstring>
 #include "loclutil.h"
 #include "mix_kernels_ocl.h"

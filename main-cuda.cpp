@@ -6,7 +6,6 @@
 
 #include <stdio.h>
 #include <stdlib.h>
-#include "timestamp.h"
 #include <cuda.h>
 #include <cuda_runtime.h>
 #include <string.h>

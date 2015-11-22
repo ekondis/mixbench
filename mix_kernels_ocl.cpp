@@ -9,7 +9,6 @@
 #include <cstring>
 #define CL_USE_DEPRECATED_OPENCL_2_0_APIS
 #include "loclutil.h"
-#include "timestamp.h"
 
 #define COMP_ITERATIONS (8192)
 #define UNROLL_ITERATIONS (32)

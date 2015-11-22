@@ -28,31 +28,22 @@ mixbench-cuda: main-cuda.o mix_kernels_cuda.o
 mixbench-cuda-bs: main-cuda.o mix_kernels_cuda-bs.o
 	${CC} -o $@ $^ ${LFLAGS_CUDA}
 
-main-cuda.o: main-cuda.cpp mix_kernels_cuda.h timestamp.h lcutil.h
-	${CC} -c ${FLAGS_CUDA} $<
-
-mix_kernels_cuda.o: mix_kernels_cuda.cu timestamp.h lcutil.h
-	${NVCC} ${NVCODE} ${NVFLAGS} -DUNIX -c $< -o $@
-
 mixbench-ocl: main-ocl.o mix_kernels_ocl.o
 	${CC} -o $@ $^ ${LFLAGS_OCL}
 
-main-ocl.o: main-ocl.cpp mix_kernels_ocl.h timestamp.h loclutil.h
+main-cuda.o: main-cuda.cpp mix_kernels_cuda.h lcutil.h
+	${CC} -c ${FLAGS_CUDA} $<
+
+main-ocl.o: main-ocl.cpp mix_kernels_ocl.h loclutil.h
 	${CC} -c ${FLAGS_OCL} $<
 
-mix_kernels_ocl.o: mix_kernels_ocl.cpp timestamp.h loclutil.h
-	${CC} -c ${FLAGS_OCL} $<
+mix_kernels_cuda.o: mix_kernels_cuda.cu lcutil.h
+	${NVCC} ${NVCODE} ${NVFLAGS} -DUNIX -c $< -o $@
 
 mix_kernels_cuda-bs.o: mix_kernels_cuda.cu
 	${NVCC} ${NVCODE} ${NVFLAGS} -DUNIX -DBLOCK_STRIDED -c $< -o $@
 
-mixbench-ocl: main-ocl.o mix_kernels_ocl.o
-	${CC} -o $@ $^ ${LFLAGS_OCL}
-
-main-ocl.o: main-ocl.cpp mix_kernels_ocl.h timestamp.h loclutil.h
-	${CC} -c ${FLAGS_OCL} $<
-
-mix_kernels_ocl.o: mix_kernels_ocl.cpp timestamp.h loclutil.h
+mix_kernels_ocl.o: mix_kernels_ocl.cpp loclutil.h
 	${CC} -c ${FLAGS_OCL} $<
 
 clean:
