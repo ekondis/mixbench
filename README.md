@@ -102,6 +102,8 @@ Publications
 
 If you use this benchmark tool for a research work please provide citation to the following paper:
 
-Konstantinidis, E.; Cotronis, Y., "A Practical Performance Model for Compute and Memory Bound GPU Kernels," Parallel, Distributed and Network-Based Processing (PDP), 2015 23rd Euromicro International Conference on , vol., no., pp.651,658, 4-6 March 2015
+Konstantinidis, E.; Cotronis, Y.,
+"A Practical Performance Model for Compute and Memory Bound GPU Kernels,"
+Parallel, Distributed and Network-Based Processing (PDP), 2015 23rd Euromicro International Conference on , vol., no., pp.651-658, 4-6 March 2015
 doi: 10.1109/PDP.2015.51
 URL: http://ieeexplore.ieee.org/stamp/stamp.jsp?tp=&arnumber=7092788&isnumber=7092002
