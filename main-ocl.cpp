@@ -15,6 +15,7 @@
 typedef struct{
 	int device_index;
 	bool block_strided;
+	bool host_allocated;
 	int wg_size;
 	unsigned int vecwidth;
 } ArgParams;
@@ -33,6 +34,8 @@ bool argument_parsing(int argc, char* argv[], ArgParams *output){
 			return false;
 		} else if( (strcmp(argv[i], "-w")==0) || (strcmp(argv[i], "--workgroup-stride")==0) ) {
 			output->block_strided = true;
+		} else if( (strcmp(argv[i], "-H")==0) || (strcmp(argv[i], "--host-alloc")==0) ) {
+			output->host_allocated = true;
 		} else {
 			unsigned long value = strtoul(argv[i], NULL, 10);
 			switch( arg_count ){
@@ -62,11 +65,12 @@ bool argument_parsing(int argc, char* argv[], ArgParams *output){
 int main(int argc, char* argv[]) {
 	printf("mixbench-ocl (compute & memory balancing GPU microbenchmark)\n");
 
-	ArgParams args = {1, false, 256, DEF_VECTOR_SIZE/(1024*1024)};
+	ArgParams args = {1, false, false, 256, DEF_VECTOR_SIZE/(1024*1024)};
 	if( !argument_parsing(argc, argv, &args) ){
 		printf("Usage: mixbench-ocl [options] [device index [workgroup size [array size(1024^2)]]]\n");
 		printf("\nOptions:\n"
 			"  -h or --help              Show this message\n"
+			"  -H or --host-alloc        Use host allocated buffer (CL_MEM_ALLOC_HOST_PTR)\n"
 			"  -w or --workgroup-stride  Workitem strides equal to the width of a workgroup length (default: NDRange length)\n"
 			"\n");
 
@@ -94,7 +98,7 @@ int main(int argc, char* argv[]) {
 	c = (double*)malloc(datasize);
 	init_vector(c, VEC_WIDTH);
 
-	mixbenchGPU(dev_id, c, VEC_WIDTH, args.block_strided, args.wg_size);
+	mixbenchGPU(dev_id, c, VEC_WIDTH, args.block_strided, args.host_allocated, args.wg_size);
 
 	free(c);
 

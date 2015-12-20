@@ -190,13 +190,15 @@ void runbench(cl_command_queue queue, cl_kernel kernels[kdt_double+1][32+1], cl_
 		(memaccesses_ratio*(double)memoryoperations*sizeof(int))/kernel_time_mad_int*1000./(1000.*1000.*1000.) );
 }
 
-extern "C" void mixbenchGPU(cl_device_id dev_id, double *c, long size, bool block_strided, size_t workgroupsize){
+extern "C" void mixbenchGPU(cl_device_id dev_id, double *c, long size, bool block_strided, bool host_allocated, size_t workgroupsize){
 	const char *benchtype;
 	if(block_strided)
 		benchtype = "Workgroup";
 	else
 		benchtype = "NDRange";
 	printf("Workitem stride: %s\n", benchtype);
+	const char *buffer_allocation = host_allocated ? "Host allocated" : "Device allocated";
+	printf("Buffer allocation: %s\n", buffer_allocation);
 
 	// Set context properties
 	cl_platform_id p_id;
@@ -214,7 +216,10 @@ extern "C" void mixbenchGPU(cl_device_id dev_id, double *c, long size, bool bloc
 	cl_context context = clCreateContext(ctxProps, 1, &dev_id, NULL, NULL, &errno);
 	OCL_SAFE_CALL(errno);
 
-	cl_mem c_buffer = clCreateBuffer(context, CL_MEM_READ_WRITE, size*sizeof(double), NULL, &errno);
+	cl_mem_flags buf_flags = CL_MEM_READ_WRITE;
+        if( host_allocated )
+                buf_flags |= CL_MEM_ALLOC_HOST_PTR;
+	cl_mem c_buffer = clCreateBuffer(context, buf_flags, size*sizeof(double), NULL, &errno);
 	OCL_SAFE_CALL(errno);
 	
 	// Create command queue
