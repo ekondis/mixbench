@@ -23,7 +23,7 @@ void benchmark_func(class_T seed, global volatile class_T *g_data){
 	global volatile class_T *data = g_data;
 
 	int array_index = index_base;
-	class_T r0 = seed,
+	class_T r0 = seed + get_global_id(0),
 	  r1 = r0+(class_T)(31),
 	  r2 = r0+(class_T)(37),
 	  r3 = r0+(class_T)(41);

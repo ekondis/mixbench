@@ -31,7 +31,7 @@ __global__ void benchmark_func(T seed, volatile T *g_data){
 	volatile T *data = g_data;
 
 	int array_index = index_base;
-	T r0 = seed,
+	T r0 = seed + blockIdx.x * blockdim + threadIdx.x,
 	  r1 = r0+(T)(31),
 	  r2 = r0+(T)(37),
 	  r3 = r0+(T)(41);
