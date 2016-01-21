@@ -12,7 +12,7 @@
 #include "lcutil.h"
 #include "mix_kernels_cuda.h"
 
-#define VECTOR_SIZE (32*1024*1024)
+#define VECTOR_SIZE (8*1024*1024)
 
 void init_vector(double *v, size_t datasize){
 	for(int i=0; i<(int)datasize; i++)

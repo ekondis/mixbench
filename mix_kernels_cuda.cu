@@ -10,7 +10,7 @@
 
 #define COMP_ITERATIONS (8192)
 #define UNROLL_ITERATIONS (32)
-#define REGBLOCK_SIZE (4)
+#define REGBLOCK_SIZE (16)
 
 #define UNROLLED_MEMORY_ACCESSES (UNROLL_ITERATIONS/2)
 
@@ -32,30 +32,57 @@ __global__ void benchmark_func(T seed, volatile T *g_data){
 
 	int array_index = index_base;
 	T r0 = seed + blockIdx.x * blockdim + threadIdx.x,
-	  r1 = r0+(T)(31),
-	  r2 = r0+(T)(37),
-	  r3 = r0+(T)(41);
+	  r1 = r0+(T)(2),
+	  r2 = r0+(T)(3),
+	  r3 = r0+(T)(5),
+	  r4 = r0+(T)(7),
+	  r5 = r0+(T)(11),
+	  r6 = r0+(T)(13),
+	  r7 = r0+(T)(17),
+	  r8 = r0+(T)(19),
+	  r9 = r0+(T)(23),
+	  rA = r0+(T)(29),
+	  rB = r0+(T)(31),
+	  rC = r0+(T)(37),
+	  rD = r0+(T)(41),
+	  rE = r0+(T)(43),
+	  rF = r0+(T)(47);
+
 
 	for(int j=0; j<COMP_ITERATIONS; j+=UNROLL_ITERATIONS){
 		#pragma unroll
 		for(int i=0; i<UNROLL_ITERATIONS-memory_ratio; i++){
 			// Each iteration maps to floating point 8 operations (4 multiplies + 4 additions)
-			r0 = r0 * r0 + r1;//r0;
-			r1 = r1 * r1 + r2;//r1;
-			r2 = r2 * r2 + r3;//r2;
-			r3 = r3 * r3 + r0;//r3;
+			r0 = r0 * r0 + r8;
+			r1 = r1 * r1 + r9;
+			r2 = r2 * r2 + rA;
+			r3 = r3 * r3 + rB;
+			r4 = r4 * r4 + rC;
+			r5 = r5 * r5 + rD;
+			r6 = r6 * r6 + rE;
+			r7 = r7 * r7 + rF;
+			r8 = r8 * r8 + r0;
+			r9 = r9 * r9 + r1;
+			rA = rA * rA + r2;
+			rB = rB * rB + r3;
+			rC = rC * rC + r4;
+			rD = rD * rD + r5;
+			rE = rE * rE + r6;
+			rF = rF * rF + r7;
 		}
 		bool do_write = true;
 		int reg_idx = 0;
 		#pragma unroll
 		for(int i=UNROLL_ITERATIONS-memory_ratio; i<UNROLL_ITERATIONS; i++){
 			// Each iteration maps to one memory operation
-			T& r = reg_idx==0 ? r0 : (reg_idx==1 ? r1 : (reg_idx==2 ? r2 : r3));
+			T& r = reg_idx==0 ? r0 : (reg_idx==1 ? r1 : (reg_idx==2 ? r2 : (reg_idx==3 ? r3 : (reg_idx==4 ? r4 : (reg_idx==5 ? r5 : (reg_idx==6 ? r6 :
+				(reg_idx==7 ? r7 : (reg_idx==8 ? r8 : (reg_idx==9 ? r9 : (reg_idx==10 ? rA : (reg_idx==11 ? rB : (reg_idx==12 ? rC : (reg_idx==13 ? rD : (reg_idx==14 ? rE : rF))))))))
+				))))));
 			if( do_write )
 				data[ array_index+halfarraysize ] = r;
 			else {
 				r = data[ array_index ];
-				if( ++reg_idx>3 )
+				if( ++reg_idx>=REGBLOCK_SIZE )
 					reg_idx = 0;
 				array_index += index_stride;
 			}
@@ -64,9 +91,13 @@ __global__ void benchmark_func(T seed, volatile T *g_data){
 		if( array_index >= array_index_bound )
 			array_index = index_base;
 	}
-	if( (r0==(T)CUDART_INF) && (r1==(T)CUDART_INF) && (r2==(T)CUDART_INF) && (r3==(T)CUDART_INF) ){ // extremely unlikely to happen
-		g_data[0] = r0+r1+r2+r3; 
+	if( (r0==(T)CUDART_INF) && (r1==(T)CUDART_INF) && (r2==(T)CUDART_INF) && (r3==(T)CUDART_INF) &&
+	    (r4==(T)CUDART_INF) && (r5==(T)CUDART_INF) && (r6==(T)CUDART_INF) && (r7==(T)CUDART_INF) &&
+	    (r8==(T)CUDART_INF) && (r9==(T)CUDART_INF) && (rA==(T)CUDART_INF) && (rB==(T)CUDART_INF) &&
+	    (rC==(T)CUDART_INF) && (rD==(T)CUDART_INF) && (rE==(T)CUDART_INF) && (rF==(T)CUDART_INF) ){ // extremely unlikely to happen
+		g_data[0] = r0+r1+r2+r3+r4+r5+r6+r7+r8+r9+rA+rB+rC+rD+rE+rF;
 	}
+
 }
 
 void initializeEvents(cudaEvent_t *start, cudaEvent_t *stop){
@@ -131,7 +162,7 @@ void runbench(double *cd, long size){
 	const double memaccesses_ratio = (double)(memory_ratio)/UNROLL_ITERATIONS;
 	const double computations_ratio = 1.0-memaccesses_ratio;
 
-	printf("    %6.3f,%8.2f,%8.2f,%7.2f,     %6.3f,%8.2f,%8.2f,%7.2f,    %6.3f,%8.2f,%8.2f,%7.2f\n", 
+	printf("   %7.3f,%8.2f,%8.2f,%7.2f,     %6.3f,%8.2f,%8.2f,%7.2f,    %6.3f,%8.2f,%8.2f,%7.2f\n", 
 		(computations_ratio*(double)computations)/(memaccesses_ratio*(double)memoryoperations*sizeof(float)),
 		kernel_time_mad_sp,
 		(computations_ratio*(double)computations)/kernel_time_mad_sp*1000./(double)(1000*1000*1000),
