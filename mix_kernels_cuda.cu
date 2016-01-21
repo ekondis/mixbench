@@ -28,6 +28,8 @@ __global__ void benchmark_func(T seed, volatile T *g_data){
 	const int halfarraysize = gridDim.x*blockdim*UNROLLED_MEMORY_ACCESSES;
 	const int offset_slips = 1+UNROLLED_MEMORY_ACCESSES-((memory_ratio+1)/2);
 	const int array_index_bound = index_base+offset_slips*index_stride;
+	const int initial_index_range = memory_ratio>0 ? UNROLLED_MEMORY_ACCESSES % ((memory_ratio+1)/2) : 1;
+	int initial_index_factor = 0;
 	volatile T *data = g_data;
 
 	int array_index = index_base;
@@ -88,8 +90,11 @@ __global__ void benchmark_func(T seed, volatile T *g_data){
 			}
 			do_write = !do_write;
 		}
-		if( array_index >= array_index_bound )
-			array_index = index_base;
+		if( array_index >= array_index_bound ){
+			if( ++initial_index_factor > initial_index_range)
+				initial_index_factor = 0;
+			array_index = index_base + initial_index_factor*index_stride;
+		}
 	}
 	if( (r0==(T)CUDART_INF) && (r1==(T)CUDART_INF) && (r2==(T)CUDART_INF) && (r3==(T)CUDART_INF) &&
 	    (r4==(T)CUDART_INF) && (r5==(T)CUDART_INF) && (r6==(T)CUDART_INF) && (r7==(T)CUDART_INF) &&
