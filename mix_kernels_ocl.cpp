@@ -12,7 +12,7 @@
 
 #define COMP_ITERATIONS (8192)
 #define UNROLL_ITERATIONS (32)
-#define REGBLOCK_SIZE (4)
+#define REGBLOCK_SIZE (16)
 
 #define UNROLLED_MEMORY_ACCESSES (UNROLL_ITERATIONS/2)
 
@@ -175,7 +175,7 @@ void runbench(cl_command_queue queue, cl_kernel kernels[kdt_double+1][32+1], cl_
 	const double memaccesses_ratio = (double)(memory_ratio)/UNROLL_ITERATIONS;
 	const double computations_ratio = 1.0-memaccesses_ratio;
 
-	printf("    %6.3f,%8.2f,%8.2f,%7.2f,     %6.3f,%8.2f,%8.2f,%7.2f,    %6.3f,%8.2f,%8.2f,%7.2f\n", 
+	printf("  %8.3f,%8.2f,%8.2f,%7.2f,   %8.3f,%8.2f,%8.2f,%7.2f,  %8.3f,%8.2f,%8.2f,%7.2f\n", 
 		(computations_ratio*(double)computations)/(memaccesses_ratio*(double)memoryoperations*sizeof(float)),
 		kernel_time_mad_sp,
 		(computations_ratio*(double)computations)/kernel_time_mad_sp*1000./(double)(1000*1000*1000),

@@ -10,7 +10,7 @@
 #include "loclutil.h"
 #include "mix_kernels_ocl.h"
 
-#define DEF_VECTOR_SIZE (32*1024*1024)
+#define DEF_VECTOR_SIZE (8*1024*1024)
 
 typedef struct{
 	int device_index;
