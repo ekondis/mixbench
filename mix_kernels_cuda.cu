@@ -16,15 +16,9 @@
 
 template <class T, int blockdim, int memory_ratio>
 __global__ void benchmark_func(T seed, volatile T *g_data){
-#ifdef BLOCK_STRIDED
 	const int index_stride = blockdim;
 	const int index_base = blockIdx.x*blockdim*UNROLLED_MEMORY_ACCESSES + threadIdx.x;
-#else
-	const int grid_size = blockdim * gridDim.x;
-	const int globaltid = blockIdx.x * blockdim + threadIdx.x;
-	const int index_stride = grid_size;
-	const int index_base = globaltid;
-#endif
+
 	const int halfarraysize = gridDim.x*blockdim*UNROLLED_MEMORY_ACCESSES;
 	const int offset_slips = 1+UNROLLED_MEMORY_ACCESSES-((memory_ratio+1)/2);
 	const int array_index_bound = index_base+offset_slips*index_stride;
@@ -183,11 +177,8 @@ void runbench(double *cd, long size){
 }
 
 extern "C" void mixbenchGPU(double *c, long size){
-#ifdef BLOCK_STRIDED
 	const char *benchtype = "compute with global memory (block strided)";
-#else
-	const char *benchtype = "compute with global memory (grid strided)";
-#endif
+
 	printf("Trade-off type:%s\n", benchtype);
 	double *cd;
 

@@ -1,5 +1,6 @@
 CUDA_INSTALL_PATH = /usr/local/cuda
-OCL_INSTALL_PATH = /opt/AMDAPPSDK
+#OCL_INSTALL_PATH = /opt/AMDAPPSDK
+OCL_INSTALL_PATH = ${CUDA_INSTALL_PATH}
 CUDA_INC_PATH = ${CUDA_INSTALL_PATH}/include
 CUDA_LIB_PATH = ${CUDA_INSTALL_PATH}/lib64
 OCL_INC_PATH = ${OCL_INSTALL_PATH}/include
@@ -19,12 +20,15 @@ NVCODE = -gencode=arch=compute_20,code=\"compute_20\"
 
 .PHONY: all
 
-all: mixbench-cuda mixbench-cuda-bs mixbench-ocl
+ifdef CUDA_INSTALL_PATH
+# build both cuda and opencl executables
+all: mixbench-cuda mixbench-ocl
+else
+# build opencl only executable
+all: mixbench-ocl
+endif
 
 mixbench-cuda: main-cuda.o mix_kernels_cuda.o
-	${CC} -o $@ $^ ${LFLAGS_CUDA}
-
-mixbench-cuda-bs: main-cuda.o mix_kernels_cuda-bs.o
 	${CC} -o $@ $^ ${LFLAGS_CUDA}
 
 mixbench-ocl: main-ocl.o mix_kernels_ocl.o
@@ -38,9 +42,6 @@ main-ocl.o: main-ocl.cpp mix_kernels_ocl.h loclutil.h
 
 mix_kernels_cuda.o: mix_kernels_cuda.cu lcutil.h
 	${NVCC} ${NVCODE} ${NVFLAGS} -DUNIX -c $< -o $@
-
-mix_kernels_cuda-bs.o: mix_kernels_cuda.cu
-	${NVCC} ${NVCODE} ${NVFLAGS} -DUNIX -DBLOCK_STRIDED -c $< -o $@
 
 mix_kernels_ocl.o: mix_kernels_ocl.cpp loclutil.h
 	${CC} -c ${FLAGS_OCL} $<
