@@ -12,10 +12,18 @@
 #include "lcutil.h"
 #include "mix_kernels_cuda.h"
 
+#ifdef READONLY
 #define VECTOR_SIZE (32*1024*1024)
+#else
+#define VECTOR_SIZE (8*1024*1024)
+#endif
 
 int main(int argc, char* argv[]) {
-	printf("mixbench (compute & memory balancing GPU microbenchmark)\n");
+#ifdef READONLY
+	printf("mixbench/read-only (compute & memory balancing GPU microbenchmark)\n");
+#else
+	printf("mixbench/alternating (compute & memory balancing GPU microbenchmark)\n");
+#endif
 
 	unsigned int datasize = VECTOR_SIZE*sizeof(double);
 
