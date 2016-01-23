@@ -20,11 +20,6 @@ typedef struct{
 	unsigned int vecwidth;
 } ArgParams;
 
-void init_vector(double *v, size_t datasize){
-	for(int i=0; i<(int)datasize; i++)
-		v[i] = i;
-}
-
 // Argument parsing
 // returns whether program execution should continue (true) or just print help output (false)
 bool argument_parsing(int argc, char* argv[], ArgParams *output){
@@ -96,7 +91,6 @@ int main(int argc, char* argv[]) {
 	
 	double *c;
 	c = (double*)malloc(datasize);
-	init_vector(c, VEC_WIDTH);
 
 	mixbenchGPU(dev_id, c, VEC_WIDTH, args.block_strided, args.host_allocated, args.wg_size);
 

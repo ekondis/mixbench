@@ -14,11 +14,6 @@
 
 #define VECTOR_SIZE (8*1024*1024)
 
-void init_vector(double *v, size_t datasize){
-	for(int i=0; i<(int)datasize; i++)
-		v[i] = i;
-}
-
 int main(int argc, char* argv[]) {
 	printf("mixbench (compute & memory balancing GPU microbenchmark)\n");
 
@@ -34,7 +29,6 @@ int main(int argc, char* argv[]) {
 	
 	double *c;
 	c = (double*)malloc(datasize);
-	init_vector(c, VECTOR_SIZE);
 
 	mixbenchGPU(c, VECTOR_SIZE);
 
