@@ -22,13 +22,16 @@ NVCODE = -gencode=arch=compute_20,code=\"compute_20\"
 
 ifdef CUDA_INSTALL_PATH
 # build both cuda and opencl executables
-all: mixbench-cuda mixbench-ocl
+all: mixbench-cuda mixbench-cuda-ro mixbench-ocl
 else
 # build opencl only executable
 all: mixbench-ocl
 endif
 
 mixbench-cuda: main-cuda.o mix_kernels_cuda.o
+	${CC} -o $@ $^ ${LFLAGS_CUDA}
+
+mixbench-cuda-ro: main-cuda.o mix_kernels_cuda_ro.o
 	${CC} -o $@ $^ ${LFLAGS_CUDA}
 
 mixbench-ocl: main-ocl.o mix_kernels_ocl.o
@@ -43,11 +46,14 @@ main-ocl.o: main-ocl.cpp mix_kernels_ocl.h loclutil.h
 mix_kernels_cuda.o: mix_kernels_cuda.cu lcutil.h
 	${NVCC} ${NVCODE} ${NVFLAGS} -DUNIX -c $< -o $@
 
+mix_kernels_cuda_ro.o: mix_kernels_cuda_ro.cu lcutil.h
+	${NVCC} ${NVCODE} ${NVFLAGS} -DUNIX -c $< -o $@
+
 mix_kernels_ocl.o: mix_kernels_ocl.cpp loclutil.h
 	${CC} -c ${FLAGS_OCL} $<
 
 clean:
-	\rm -f mixbench-cuda main-cuda.o mix_kernels_cuda.o mix_kernels_cuda-bs.o mixbench-cuda-bs mixbench-cuda-bs.o mixbench-ocl main-ocl.o mix_kernels_ocl.o
+	\rm -f mixbench-cuda main-cuda.o mix_kernels_cuda.o mixbench-cuda-ro mix_kernels_cuda_ro.o mixbench-ocl main-ocl.o mix_kernels_ocl.o
 
-rebuild: clean mixbench-cuda mixbench-cuda-bs mixbench-ocl
+rebuild: clean mixbench-cuda mixbench-cuda-ro mixbench-ocl
 

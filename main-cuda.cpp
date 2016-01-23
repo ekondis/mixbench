@@ -12,7 +12,7 @@
 #include "lcutil.h"
 #include "mix_kernels_cuda.h"
 
-#define VECTOR_SIZE (8*1024*1024)
+#define VECTOR_SIZE (32*1024*1024)
 
 int main(int argc, char* argv[]) {
 	printf("mixbench (compute & memory balancing GPU microbenchmark)\n");
