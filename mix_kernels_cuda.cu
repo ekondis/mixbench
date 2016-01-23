@@ -48,7 +48,6 @@ __global__ void benchmark_func(T seed, volatile T *g_data){
 	for(int j=0; j<COMP_ITERATIONS; j+=UNROLL_ITERATIONS){
 		#pragma unroll
 		for(int i=0; i<UNROLL_ITERATIONS-memory_ratio; i++){
-			// Each iteration maps to floating point 8 operations (4 multiplies + 4 additions)
 			r0 = r0 * r0 + r8;
 			r1 = r1 * r1 + r9;
 			r2 = r2 * r2 + rA;
