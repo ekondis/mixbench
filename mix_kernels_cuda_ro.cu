@@ -12,15 +12,15 @@
 
 template <class T, int blockdim, unsigned int granularity, unsigned int compute_iterations>
 __global__ void benchmark_func(T seed, T *g_data){
-	const unsigned int blockSize = blockdim;//blockDim.x;
+	const unsigned int blockSize = blockdim;
 	const int stride = blockSize;
-	int i = blockIdx.x*blockSize*granularity + threadIdx.x;
+	int idx = blockIdx.x*blockSize*granularity + threadIdx.x;
 
 	T tmps[granularity];
 	// Load elements (memory intensive part)
 	#pragma unroll
 	for(int j=0; j<granularity; j++)
-		tmps[j] = g_data[i+j*stride];
+		tmps[j] = g_data[idx+j*stride];
 	// Perform computations (compute intensive part)
 	#pragma unroll 512
 	for(int i=0; i<compute_iterations; i++){
@@ -37,7 +37,7 @@ __global__ void benchmark_func(T seed, T *g_data){
 	if( sum==(T)-1 ){ // Designed so it never executes
 		#pragma unroll
 		for(int j=0; j<granularity; j++)
-			g_data[i] = sum;
+			g_data[idx] = sum;
 	}
 }
 
