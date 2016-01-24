@@ -10,12 +10,6 @@
 #define CL_USE_DEPRECATED_OPENCL_2_0_APIS
 #include "loclutil.h"
 
-#define COMP_ITERATIONS (8192)
-#define UNROLL_ITERATIONS (32)
-#define REGBLOCK_SIZE (16)
-
-#define UNROLLED_MEMORY_ACCESSES (UNROLL_ITERATIONS/2)
-
 #if defined(_MSC_VER)
 #define SIZE_T_FORMAT "%lu"
 #else
@@ -23,6 +17,9 @@
 #endif
 
 enum KrnDataType{ kdt_int, kdt_float, kdt_double };
+
+const int compute_iterations[] = {0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15, 16, 18, 20, 24, 32, 48, 64, 96, 128, 256, 512, 768, 1024, 1536, 2048};
+const int compute_iterations_len = sizeof(compute_iterations)/sizeof(*compute_iterations);
 
 char* ReadFile(const char *filename){
 	char *buffer = NULL;
@@ -112,7 +109,7 @@ void ReleaseKernelNProgram(cl_kernel kernel){
 }
 
 void runbench_warmup(cl_command_queue queue, cl_kernel kernel, cl_mem cbuffer, long size, size_t workgroupsize){
-	const long reduced_grid_size = size/(UNROLLED_MEMORY_ACCESSES)/32;
+	const long reduced_grid_size = size/256;
 
 	const size_t dimBlock[1] = {workgroupsize};
 	const size_t dimReducedGrid[1] = {(size_t)reduced_grid_size};
@@ -124,16 +121,10 @@ void runbench_warmup(cl_command_queue queue, cl_kernel kernel, cl_mem cbuffer, l
 	OCL_SAFE_CALL( clEnqueueNDRangeKernel(queue, kernel, 1, NULL, dimReducedGrid, dimBlock, 0, NULL, NULL) );
 }
 
-void runbench(int memory_ratio, cl_command_queue queue, cl_kernel kernels[kdt_double+1][32+1], cl_mem cbuffer, long size, size_t workgroupsize){
-	if( memory_ratio>UNROLL_ITERATIONS ){
-		fprintf(stderr, "ERROR: memory_ratio exceeds UNROLL_ITERATIONS\n");
-		exit(1);
-	}
-
-	const long compute_grid_size = size/(UNROLLED_MEMORY_ACCESSES)/2;
-	
-	const long long computations = 2*(long long)(COMP_ITERATIONS)*REGBLOCK_SIZE*compute_grid_size;
-	const long long memoryoperations = (long long)(COMP_ITERATIONS)*compute_grid_size;
+void runbench(const int compute_iterations[], unsigned int krn_idx, cl_command_queue queue, cl_kernel kernels[kdt_double+1][compute_iterations_len], cl_mem cbuffer, long size, size_t workgroupsize, unsigned int elements_per_wi){
+	const long compute_grid_size = size/elements_per_wi;
+	const long long computations = elements_per_wi*compute_grid_size+(2*elements_per_wi*compute_iterations[krn_idx])*compute_grid_size;
+	const long long memoryoperations = size;
 
 	const size_t dimBlock[1] = {workgroupsize};
 	const size_t dimGrid[1] = {(size_t)compute_grid_size};
@@ -141,7 +132,7 @@ void runbench(int memory_ratio, cl_command_queue queue, cl_kernel kernels[kdt_do
 	cl_event event;
 	
 	const short seed_f = 1.0f;
-	cl_kernel kernel = kernels[kdt_float][memory_ratio];
+	cl_kernel kernel = kernels[kdt_float][krn_idx];
 	OCL_SAFE_CALL( clSetKernelArg(kernel, 0, sizeof(cl_float), &seed_f) );
 	OCL_SAFE_CALL( clSetKernelArg(kernel, 1, sizeof(cl_mem), &cbuffer) );
 	OCL_SAFE_CALL( clEnqueueNDRangeKernel(queue, kernel, 1, NULL, dimGrid, dimBlock, 0, NULL, &event) );
@@ -151,7 +142,7 @@ void runbench(int memory_ratio, cl_command_queue queue, cl_kernel kernels[kdt_do
 
 	const short seed_d = 1.0;
 	double kernel_time_mad_dp;
-	kernel = kernels[kdt_double][memory_ratio];
+	kernel = kernels[kdt_double][krn_idx];
 	if( kernel ){
 		OCL_SAFE_CALL( clSetKernelArg(kernel, 0, sizeof(cl_double), &seed_d) );
 		OCL_SAFE_CALL( clSetKernelArg(kernel, 1, sizeof(cl_mem), &cbuffer) );
@@ -163,7 +154,7 @@ void runbench(int memory_ratio, cl_command_queue queue, cl_kernel kernels[kdt_do
 		kernel_time_mad_dp = 0.0;
 
 	const short seed_i = 1.0;
-	kernel = kernels[kdt_int][memory_ratio];
+	kernel = kernels[kdt_int][krn_idx];
 	OCL_SAFE_CALL( clSetKernelArg(kernel, 0, sizeof(cl_int), &seed_i) );
 	OCL_SAFE_CALL( clSetKernelArg(kernel, 1, sizeof(cl_mem), &cbuffer) );
 	OCL_SAFE_CALL( clEnqueueNDRangeKernel(queue, kernel, 1, NULL, dimGrid, dimBlock, 0, NULL, &event) );
@@ -171,25 +162,22 @@ void runbench(int memory_ratio, cl_command_queue queue, cl_kernel kernels[kdt_do
 	double kernel_time_mad_int = get_event_duration(event);
 	OCL_SAFE_CALL( clReleaseEvent( event ) );
 
-	const double memaccesses_ratio = (double)(memory_ratio)/UNROLL_ITERATIONS;
-	const double computations_ratio = 1.0-memaccesses_ratio;
-
 	printf("  %8.3f,%8.2f,%8.2f,%7.2f,   %8.3f,%8.2f,%8.2f,%7.2f,  %8.3f,%8.2f,%8.2f,%7.2f\n", 
-		(computations_ratio*(double)computations)/(memaccesses_ratio*(double)memoryoperations*sizeof(float)),
+		((double)computations)/((double)memoryoperations*sizeof(float)),
 		kernel_time_mad_sp,
-		(computations_ratio*(double)computations)/kernel_time_mad_sp*1000./(double)(1000*1000*1000),
-		(memaccesses_ratio*(double)memoryoperations*sizeof(float))/kernel_time_mad_sp*1000./(1000.*1000.*1000.),
-		(computations_ratio*(double)computations)/(memaccesses_ratio*(double)memoryoperations*sizeof(double)),
+		((double)computations)/kernel_time_mad_sp*1000./(double)(1000*1000*1000),
+		((double)memoryoperations*sizeof(float))/kernel_time_mad_sp*1000./(1000.*1000.*1000.),
+		((double)computations)/((double)memoryoperations*sizeof(double)),
 		kernel_time_mad_dp,
-		(computations_ratio*(double)computations)/kernel_time_mad_dp*1000./(double)(1000*1000*1000),
-		(memaccesses_ratio*(double)memoryoperations*sizeof(double))/kernel_time_mad_dp*1000./(1000.*1000.*1000.),
-		(computations_ratio*(double)computations)/(memaccesses_ratio*(double)memoryoperations*sizeof(int)),
+		((double)computations)/kernel_time_mad_dp*1000./(double)(1000*1000*1000),
+		((double)memoryoperations*sizeof(double))/kernel_time_mad_dp*1000./(1000.*1000.*1000.),
+		((double)computations)/((double)memoryoperations*sizeof(int)),
 		kernel_time_mad_int,
-		(computations_ratio*(double)computations)/kernel_time_mad_int*1000./(double)(1000*1000*1000),
-		(memaccesses_ratio*(double)memoryoperations*sizeof(int))/kernel_time_mad_int*1000./(1000.*1000.*1000.) );
+		((double)computations)/kernel_time_mad_int*1000./(double)(1000*1000*1000),
+		((double)memoryoperations*sizeof(int))/kernel_time_mad_int*1000./(1000.*1000.*1000.) );
 }
 
-extern "C" void mixbenchGPU(cl_device_id dev_id, double *c, long size, bool block_strided, bool host_allocated, size_t workgroupsize){
+extern "C" void mixbenchGPU(cl_device_id dev_id, double *c, long size, bool block_strided, bool host_allocated, size_t workgroupsize, unsigned int elements_per_wi){
 	const char *benchtype;
 	if(block_strided)
 		benchtype = "Workgroup";
@@ -234,33 +222,33 @@ extern "C" void mixbenchGPU(cl_device_id dev_id, double *c, long size, bool bloc
 
 	// Load source, create program and all kernels
 	printf("Loading kernel source file...\n");
-	const char c_param_format_str[] = "-cl-std=CL1.1 -cl-mad-enable -Dclass_T=%s -Dblockdim=" SIZE_T_FORMAT " -Dmemory_ratio=%d %s %s";
+	const char c_param_format_str[] = "-cl-std=CL1.1 -cl-mad-enable -Dclass_T=%s -Dblockdim=" SIZE_T_FORMAT " -DCOMPUTE_ITERATIONS=%d -DELEMENTS_PER_THREAD=%d %s %s";
 	const char *c_empty = "";
 	const char *c_striding = block_strided ? "-DBLOCK_STRIDED" : c_empty;
 	const char *c_enable_dp = "-DENABLE_DP";
 	char c_build_params[256];
-	const char *c_kernel_source = {ReadFile("mix_kernels.cl")};
+	const char *c_kernel_source = {ReadFile("mix_kernels_ro.cl")};
 	printf("Precompilation of kernels... ");
-	sprintf(c_build_params, c_param_format_str, "short", workgroupsize, 0, c_striding, c_empty);
+	sprintf(c_build_params, c_param_format_str, "short", workgroupsize, 0, 1, c_striding, c_empty);
 
 	cl_kernel kernel_warmup = BuildKernel(context, dev_id, c_kernel_source, c_build_params);
 
-	show_progress_init(32+1);
-	cl_kernel kernels[kdt_double+1][32+1];
-	for(int i=0; i<=32; i++){
+	show_progress_init(compute_iterations_len);
+	cl_kernel kernels[kdt_double+1][compute_iterations_len];
+	for(int i=0; i<compute_iterations_len; i++){
 		show_progress_step(0, '\\');
-		sprintf(c_build_params, c_param_format_str, "float", workgroupsize, i, c_striding, c_empty);
+		sprintf(c_build_params, c_param_format_str, "float", workgroupsize, compute_iterations[i], elements_per_wi, c_striding, c_empty);
 		//printf("%s\n",c_build_params);
 		kernels[kdt_float][i] = BuildKernel(context, dev_id, c_kernel_source, c_build_params);
 
 		show_progress_step(0, '|');
-		sprintf(c_build_params, c_param_format_str, "int", workgroupsize, i, c_striding, c_empty);
+		sprintf(c_build_params, c_param_format_str, "int", workgroupsize, compute_iterations[i], elements_per_wi, c_striding, c_empty);
 		//printf("%s\n",c_build_params);
 		kernels[kdt_int][i] = BuildKernel(context, dev_id, c_kernel_source, c_build_params);
 
 		if( enable_dp ){
 			show_progress_step(0, '/');
-			sprintf(c_build_params, c_param_format_str, "double", workgroupsize, i, c_striding, c_enable_dp);
+			sprintf(c_build_params, c_param_format_str, "double", workgroupsize, compute_iterations[i], elements_per_wi, c_striding, c_enable_dp);
 			//printf("%s\n",c_build_params);
 			kernels[kdt_double][i] = BuildKernel(context, dev_id, c_kernel_source, c_build_params);
 		} else
@@ -279,8 +267,8 @@ extern "C" void mixbenchGPU(cl_device_id dev_id, double *c, long size, bool bloc
 	printf("Single Precision ops,,,,              Double precision ops,,,,              Integer operations,,, \n");
 	printf("Flops/byte, ex.time,  GFLOPS, GB/sec, Flops/byte, ex.time,  GFLOPS, GB/sec, Iops/byte, ex.time,   GIOPS, GB/sec\n");
 
-	for(int i=32; i>=0; i--)
-		runbench(i, cmd_queue, kernels, c_buffer, size, workgroupsize);
+	for(int i=0; i<compute_iterations_len; i++)
+		runbench(compute_iterations, i, cmd_queue, kernels, c_buffer, size, workgroupsize, elements_per_wi);
 
 	printf("---------------------------------------------------------------------------------------------------------------\n");
 
@@ -289,7 +277,7 @@ extern "C" void mixbenchGPU(cl_device_id dev_id, double *c, long size, bool bloc
 
 	// Release kernels and program
 	ReleaseKernelNProgram(kernel_warmup);
-	for(int i=0; i<=32; i++){
+	for(int i=0; i<compute_iterations_len; i++){
 		ReleaseKernelNProgram(kernels[kdt_float][i]);
 		ReleaseKernelNProgram(kernels[kdt_int][i]);
 		if( enable_dp )

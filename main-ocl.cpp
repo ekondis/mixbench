@@ -8,9 +8,17 @@
 #include <cstdlib>
 #include <cstring>
 #include "loclutil.h"
+#ifdef READONLY
+#include "mix_kernels_ocl_ro.h"
+#else
 #include "mix_kernels_ocl.h"
+#endif
 
+#ifdef READONLY
+#define DEF_VECTOR_SIZE (32*1024*1024)
+#else
 #define DEF_VECTOR_SIZE (8*1024*1024)
+#endif
 
 typedef struct{
 	int device_index;
@@ -18,6 +26,9 @@ typedef struct{
 	bool host_allocated;
 	int wg_size;
 	unsigned int vecwidth;
+#ifdef READONLY
+	unsigned int elements_per_wi;
+#endif
 } ArgParams;
 
 // Argument parsing
@@ -49,6 +60,13 @@ bool argument_parsing(int argc, char* argv[], ArgParams *output){
 					output->vecwidth = value;
 					arg_count++;
 					break;
+#ifdef READONLY
+				// elements per workitem
+				case 3:
+					output->elements_per_wi = value;
+					arg_count++;
+					break;
+#endif
 				default:
 					return false;
 			}
@@ -58,11 +76,24 @@ bool argument_parsing(int argc, char* argv[], ArgParams *output){
 }
 
 int main(int argc, char* argv[]) {
-	printf("mixbench-ocl (compute & memory balancing GPU microbenchmark)\n");
+#ifdef READONLY
+	printf("mixbench-ocl/read-only (compute & memory balancing GPU microbenchmark)\n");
+#else
+	printf("mixbench-ocl/alternating (compute & memory balancing GPU microbenchmark)\n");
+#endif
 
+#ifdef READONLY
+	ArgParams args = {1, false, false, 256, DEF_VECTOR_SIZE/(1024*1024), 8};
+#else
 	ArgParams args = {1, false, false, 256, DEF_VECTOR_SIZE/(1024*1024)};
+#endif
+
 	if( !argument_parsing(argc, argv, &args) ){
+#ifdef READONLY
+		printf("Usage: mixbench-ocl [options] [device index [workgroup size [array size(1024^2) [elements per workitem]]]]\n");
+#else
 		printf("Usage: mixbench-ocl [options] [device index [workgroup size [array size(1024^2)]]]\n");
+#endif
 		printf("\nOptions:\n"
 			"  -h or --help              Show this message\n"
 			"  -H or --host-alloc        Use host allocated buffer (CL_MEM_ALLOC_HOST_PTR)\n"
@@ -86,13 +117,20 @@ int main(int argc, char* argv[]) {
 	}
 	StoreDeviceInfo(dev_id, stdout);
 
-	printf("Buffer size: %dMB\n", datasize/(1024*1024));
-	printf("Workgroup size: %d\n", args.wg_size);
-	
+	printf("Buffer size           : %dMB\n", datasize/(1024*1024));
+	printf("Workgroup size        : %d\n", args.wg_size);
+#ifdef READONLY
+	printf("Elements per workitem : %d\n", args.elements_per_wi);
+#endif
+
 	double *c;
 	c = (double*)malloc(datasize);
 
+#ifdef READONLY
+	mixbenchGPU(dev_id, c, VEC_WIDTH, args.block_strided, args.host_allocated, args.wg_size, args.elements_per_wi);
+#else
 	mixbenchGPU(dev_id, c, VEC_WIDTH, args.block_strided, args.host_allocated, args.wg_size);
+#endif
 
 	free(c);
 

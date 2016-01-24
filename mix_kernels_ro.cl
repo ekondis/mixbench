@@ -1,0 +1,42 @@
+#ifdef ENABLE_DP
+	#pragma OPENCL EXTENSION cl_khr_fp64 : enable
+#endif
+
+
+__kernel __attribute__((reqd_work_group_size(blockdim, 1, 1)))
+void benchmark_func(class_T seed, global class_T *g_data){
+	const unsigned int blockSize = blockdim;
+#ifdef BLOCK_STRIDED
+	const int stride = blockSize;
+	const int idx = get_group_id(0)*blockSize*ELEMENTS_PER_THREAD + get_local_id(0);
+#else
+	const int grid_size = blockSize * get_num_groups(0);
+	const int stride = grid_size;
+	const int idx = get_global_id(0);
+#endif
+
+	class_T tmps[ELEMENTS_PER_THREAD];
+	// Load elements (memory intensive part)
+	#pragma unroll
+	for(int j=0; j<ELEMENTS_PER_THREAD; j++)
+		tmps[j] = g_data[idx+j*stride];
+	// Perform computations (compute intensive part)
+	//#pragma unroll 512
+	#pragma unroll 64
+	for(int i=0; i<COMPUTE_ITERATIONS; i++){
+		#pragma unroll
+		for(int j=0; j<ELEMENTS_PER_THREAD; j++)
+			tmps[j] = tmps[j]*tmps[j]+tmps[(j+ELEMENTS_PER_THREAD/2)%ELEMENTS_PER_THREAD];
+	}
+	// Multiply add reduction
+	class_T sum = (class_T)0;
+	#pragma unroll
+	for(int j=0; j<ELEMENTS_PER_THREAD; j+=2)
+		sum += tmps[j]*tmps[j+1];
+	// Dummy code
+	if( sum==(class_T)-1 ){ // Designed so it never executes
+		#pragma unroll
+		for(int j=0; j<ELEMENTS_PER_THREAD; j++)
+			g_data[idx] = sum;
+	}
+}
