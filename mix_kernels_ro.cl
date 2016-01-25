@@ -22,7 +22,7 @@ void benchmark_func(class_T seed, global class_T *g_data){
 		tmps[j] = g_data[idx+j*stride];
 	// Perform computations (compute intensive part)
 	//#pragma unroll 512
-	#pragma unroll 64
+	#pragma unroll 16
 	for(int i=0; i<COMPUTE_ITERATIONS; i++){
 		#pragma unroll
 		for(int j=0; j<ELEMENTS_PER_THREAD; j++)
