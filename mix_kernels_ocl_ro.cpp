@@ -123,7 +123,8 @@ void runbench_warmup(cl_command_queue queue, cl_kernel kernel, cl_mem cbuffer, l
 
 void runbench(const int compute_iterations[], unsigned int krn_idx, cl_command_queue queue, cl_kernel kernels[kdt_double+1][compute_iterations_len], cl_mem cbuffer, long size, size_t workgroupsize, unsigned int elements_per_wi){
 	const long compute_grid_size = size/elements_per_wi;
-	const long long computations = elements_per_wi*compute_grid_size+(2*elements_per_wi*compute_iterations[krn_idx])*compute_grid_size;
+	const int current_compute_iterations = compute_iterations[krn_idx];
+	const long long computations = elements_per_wi*compute_grid_size+(2*elements_per_wi*current_compute_iterations)*compute_grid_size;
 	const long long memoryoperations = size;
 
 	const size_t dimBlock[1] = {workgroupsize};
@@ -162,7 +163,8 @@ void runbench(const int compute_iterations[], unsigned int krn_idx, cl_command_q
 	double kernel_time_mad_int = get_event_duration(event);
 	OCL_SAFE_CALL( clReleaseEvent( event ) );
 
-	printf("  %8.3f,%8.2f,%8.2f,%7.2f,   %8.3f,%8.2f,%8.2f,%7.2f,  %8.3f,%8.2f,%8.2f,%7.2f\n", 
+	printf("         %4d,   %8.3f,%8.2f,%8.2f,%7.2f,   %8.3f,%8.2f,%8.2f,%7.2f,  %8.3f,%8.2f,%8.2f,%7.2f\n",
+		current_compute_iterations,
 		((double)computations)/((double)memoryoperations*sizeof(float)),
 		kernel_time_mad_sp,
 		((double)computations)/kernel_time_mad_sp*1000./(double)(1000*1000*1000),
@@ -263,14 +265,14 @@ extern "C" void mixbenchGPU(cl_device_id dev_id, double *c, long size, bool bloc
 	// Synchronize in order to wait for memory operations to finish
 	OCL_SAFE_CALL( clFinish(cmd_queue) );
 
-	printf("--------------------------------------------------- CSV data --------------------------------------------------\n");
-	printf("Single Precision ops,,,,              Double precision ops,,,,              Integer operations,,, \n");
-	printf("Flops/byte, ex.time,  GFLOPS, GB/sec, Flops/byte, ex.time,  GFLOPS, GB/sec, Iops/byte, ex.time,   GIOPS, GB/sec\n");
+	printf("---------------------------------------------------------- CSV data ----------------------------------------------------------\n");
+	printf("Experiment ID, Single Precision ops,,,,              Double precision ops,,,,              Integer operations,,, \n");
+	printf("Compute iters, Flops/byte, ex.time,  GFLOPS, GB/sec, Flops/byte, ex.time,  GFLOPS, GB/sec, Iops/byte, ex.time,   GIOPS, GB/sec\n");
 
 	for(int i=0; i<compute_iterations_len; i++)
 		runbench(compute_iterations, i, cmd_queue, kernels, c_buffer, size, workgroupsize, elements_per_wi);
 
-	printf("---------------------------------------------------------------------------------------------------------------\n");
+	printf("------------------------------------------------------------------------------------------------------------------------------\n");
 
 	// Copy results back to host memory
 	OCL_SAFE_CALL( clEnqueueReadBuffer(cmd_queue, c_buffer, CL_TRUE, 0, size*sizeof(double), c, 0, NULL, NULL) );

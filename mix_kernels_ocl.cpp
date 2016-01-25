@@ -174,7 +174,8 @@ void runbench(int memory_ratio, cl_command_queue queue, cl_kernel kernels[kdt_do
 	const double memaccesses_ratio = (double)(memory_ratio)/UNROLL_ITERATIONS;
 	const double computations_ratio = 1.0-memaccesses_ratio;
 
-	printf("  %8.3f,%8.2f,%8.2f,%7.2f,   %8.3f,%8.2f,%8.2f,%7.2f,  %8.3f,%8.2f,%8.2f,%7.2f\n", 
+	printf("         %4d,  %8.3f,%8.2f,%8.2f,%7.2f,   %8.3f,%8.2f,%8.2f,%7.2f,  %8.3f,%8.2f,%8.2f,%7.2f\n", 
+		UNROLL_ITERATIONS-memory_ratio,
 		(computations_ratio*(double)computations)/(memaccesses_ratio*(double)memoryoperations*sizeof(float)),
 		kernel_time_mad_sp,
 		(computations_ratio*(double)computations)/kernel_time_mad_sp*1000./(double)(1000*1000*1000),
@@ -195,9 +196,9 @@ extern "C" void mixbenchGPU(cl_device_id dev_id, double *c, long size, bool bloc
 		benchtype = "Workgroup";
 	else
 		benchtype = "NDRange";
-	printf("Workitem stride: %s\n", benchtype);
+	printf("Workitem stride       : %s\n", benchtype);
 	const char *buffer_allocation = host_allocated ? "Host allocated" : "Device allocated";
-	printf("Buffer allocation: %s\n", buffer_allocation);
+	printf("Buffer allocation     : %s\n", buffer_allocation);
 
 	// Set context properties
 	cl_platform_id p_id;
@@ -275,14 +276,14 @@ extern "C" void mixbenchGPU(cl_device_id dev_id, double *c, long size, bool bloc
 	// Synchronize in order to wait for memory operations to finish
 	OCL_SAFE_CALL( clFinish(cmd_queue) );
 
-	printf("--------------------------------------------------- CSV data --------------------------------------------------\n");
-	printf("Single Precision ops,,,,              Double precision ops,,,,              Integer operations,,, \n");
-	printf("Flops/byte, ex.time,  GFLOPS, GB/sec, Flops/byte, ex.time,  GFLOPS, GB/sec, Iops/byte, ex.time,   GIOPS, GB/sec\n");
+	printf("---------------------------------------------------------- CSV data ----------------------------------------------------------\n");
+	printf("Experiment ID, Single Precision ops,,,,              Double precision ops,,,,              Integer operations,,, \n");
+	printf("Compute iters, Flops/byte, ex.time,  GFLOPS, GB/sec, Flops/byte, ex.time,  GFLOPS, GB/sec, Iops/byte, ex.time,   GIOPS, GB/sec\n");
 
 	for(int i=32; i>=0; i--)
 		runbench(i, cmd_queue, kernels, c_buffer, size, workgroupsize);
 
-	printf("---------------------------------------------------------------------------------------------------------------\n");
+	printf("------------------------------------------------------------------------------------------------------------------------------\n");
 
 	// Copy results back to host memory
 	OCL_SAFE_CALL( clEnqueueReadBuffer(cmd_queue, c_buffer, CL_TRUE, 0, size*sizeof(double), c, 0, NULL, NULL) );
