@@ -17,16 +17,14 @@ __global__ void benchmark_func(T seed, T *g_data){
 	int idx = blockIdx.x*blockSize*granularity + threadIdx.x;
 
 	T tmps[granularity];
-	// Load elements (memory intensive part)
 	#pragma unroll
-	for(int j=0; j<granularity; j++)
+	for(int j=0; j<granularity; j++){
+		// Load elements (memory intensive part)
 		tmps[j] = g_data[idx+j*stride];
-	// Perform computations (compute intensive part)
-	#pragma unroll 512
-	for(int i=0; i<compute_iterations; i++){
-		#pragma unroll
-		for(int j=0; j<granularity; j++)
-			tmps[j] = tmps[j]*tmps[j]+tmps[(j+granularity/2)%granularity];
+		// Perform computations (compute intensive part)
+		for(int i=0; i<compute_iterations; i++){
+			tmps[j] = tmps[j]*tmps[j]+seed;//tmps[(j+granularity/2)%granularity];
+		}
 	}
 	// Multiply add reduction
 	T sum = (T)0;
@@ -148,20 +146,22 @@ extern "C" void mixbenchGPU(double *c, long size){
 	runbench<14>(cd, size);
 	runbench<15>(cd, size);
 	runbench<16>(cd, size);
+	runbench<17>(cd, size);
 	runbench<18>(cd, size);
 	runbench<20>(cd, size);
+	runbench<22>(cd, size);
 	runbench<24>(cd, size);
+	runbench<28>(cd, size);
 	runbench<32>(cd, size);
+	runbench<40>(cd, size);
 	runbench<48>(cd, size);
+	runbench<56>(cd, size);
 	runbench<64>(cd, size);
+	runbench<80>(cd, size);
 	runbench<96>(cd, size);
 	runbench<128>(cd, size);
 	runbench<256>(cd, size);
 	runbench<512>(cd, size);
-	runbench<768>(cd, size);
-	runbench<1024>(cd, size);
-	runbench<1536>(cd, size);
-	runbench<2048>(cd, size);
 
 	printf("------------------------------------------------------------------------------------------------------------------------------\n");
 

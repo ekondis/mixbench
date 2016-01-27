@@ -18,7 +18,7 @@
 
 enum KrnDataType{ kdt_int, kdt_float, kdt_double };
 
-const int compute_iterations[] = {0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15, 16, 18, 20, 24, 32, 48, 64, 96, 128, 256, 512, 768, 1024, 1536, 2048};
+const int compute_iterations[] = {0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15, 16, 17, 18, 20, 22, 24, 28, 32, 40, 48, 56, 64, 80, 96, 128, 256, 512};
 const int compute_iterations_len = sizeof(compute_iterations)/sizeof(*compute_iterations);
 
 char* ReadFile(const char *filename){

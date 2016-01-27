@@ -16,17 +16,15 @@ void benchmark_func(class_T seed, global class_T *g_data){
 #endif
 
 	class_T tmps[ELEMENTS_PER_THREAD];
-	// Load elements (memory intensive part)
 	#pragma unroll
-	for(int j=0; j<ELEMENTS_PER_THREAD; j++)
+	for(int j=0; j<ELEMENTS_PER_THREAD; j++){
+		// Load elements (memory intensive part)
 		tmps[j] = g_data[idx+j*stride];
-	// Perform computations (compute intensive part)
-	//#pragma unroll 512
-	#pragma unroll 16
-	for(int i=0; i<COMPUTE_ITERATIONS; i++){
-		#pragma unroll
-		for(int j=0; j<ELEMENTS_PER_THREAD; j++)
-			tmps[j] = tmps[j]*tmps[j]+tmps[(j+ELEMENTS_PER_THREAD/2)%ELEMENTS_PER_THREAD];
+		// Perform computations (compute intensive part)
+		//#pragma unroll
+		for(int i=0; i<COMPUTE_ITERATIONS; i++){
+			tmps[j] = tmps[j]*tmps[j]+seed;//tmps[(j+ELEMENTS_PER_THREAD/2)%ELEMENTS_PER_THREAD];
+		}
 	}
 	// Multiply add reduction
 	class_T sum = (class_T)0;
