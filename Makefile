@@ -18,14 +18,34 @@ NVCODE = -gencode=arch=compute_20,code=\"compute_20\"
 #NVCODE = -gencode=arch=compute_52,code=\"compute_52\" -gencode=arch=compute_30,code=\"compute_30\" -gencode=arch=compute_20,code=\"compute_20\"
 #NVCODE = -gencode=arch=compute_30,code=\"compute_30\"
 
+HIP_PATH?=../../..
+HIPCC=$(HIP_PATH)/bin/hipcc
+HIP_PLATFORM=$(shell $(HIP_PATH)/bin/hipconfig --compiler)
+
+ifeq (${HIP_PLATFORM}, nvcc)
+	HIPCC_FLAGS=${NVCODE} ${NVFLAGS}
+else
+	HIPCC_FLAGS=${OPTFLAG}
+endif
+
 .PHONY: all
 
 ifdef CUDA_INSTALL_PATH
-# build both cuda and opencl executables
-all: mixbench-cuda mixbench-cuda-ro mixbench-ocl mixbench-ocl-ro
+    ifdef HIP_PLATFORM
+        # build hip, cuda and opencl executables
+        all: mixbench-hip mixbench-hip-ro mixbench-cuda mixbench-cuda-ro mixbench-ocl mixbench-ocl-ro
+    else
+        # build both cuda and opencl executables
+        all: mixbench-cuda mixbench-cuda-ro mixbench-ocl mixbench-ocl-ro
+    endif
 else
-# build opencl only executable
-all: mixbench-ocl mixbench-ocl-ro
+    ifdef HIP_PLATFORM
+        # build hip only executable
+        all: mixbench-hip mixbench-hip-ro
+    else
+        # build opencl only executable
+        all: mixbench-ocl mixbench-ocl-ro
+    endif
 endif
 
 mixbench-cuda: main-cuda.o mix_kernels_cuda.o
@@ -39,6 +59,12 @@ mixbench-ocl: main-ocl.o mix_kernels_ocl.o
 
 mixbench-ocl-ro: main-ocl-ro.o mix_kernels_ocl_ro.o
 	${CC} -o $@ $^ ${LFLAGS_OCL}
+
+mixbench-hip: main-hip.o mix_kernels_hip.o
+	${HIPCC} ${HIPCC_FLAGS} -o $@ $^ 
+
+mixbench-hip-ro: main-hip-ro.o mix_kernels_hip-ro.o
+	${HIPCC} ${HIPCC_FLAGS} -o $@ $^ 
 
 main-cuda.o: main-cuda.cpp mix_kernels_cuda.h lcutil.h
 	${CC} -c ${FLAGS_CUDA} $< -o $@
@@ -64,8 +90,20 @@ mix_kernels_ocl.o: mix_kernels_ocl.cpp mix_kernels_ocl.h loclutil.h
 mix_kernels_ocl_ro.o: mix_kernels_ocl_ro.cpp mix_kernels_ocl.h loclutil.h
 	${CC} -c ${FLAGS_OCL} $< -o $@
 
+#HIP
+main-hip.o: main-hip.cpp mix_kernels_hip.h lhiputil.h
+	${HIPCC} -c ${HIPCC_FLAGS} $<
+
+mix_kernels_hip.o: mix_kernels_hip.cpp lhiputil.h
+	${HIPCC} ${HIPCC_FLAGS} -DUNIX -c $< -o $@
+
+main-hip-ro.o: main-hip-ro.cpp mix_kernels_hip.h lhiputil.h
+	${HIPCC} -c ${HIPCC_FLAGS} -DREADONLY $<
+
+mix_kernels_hip-ro.o: mix_kernels_hip_ro.cpp lhiputil.h
+	${HIPCC} ${HIPCC_FLAGS} -DUNIX -c $< -o $@
+
 clean:
-	\rm -f mixbench-cuda main-cuda.o mix_kernels_cuda.o main-cuda-ro.o mixbench-cuda-ro mix_kernels_cuda_ro.o mixbench-ocl main-ocl.o mix_kernels_ocl.o
+	\rm -f mixbench-cuda mixbench-cuda-ro mixbench-ocl mixbench-ocl-ro mixbench-hip mixbench-hip-ro *.o 
 
-rebuild: clean mixbench-cuda mixbench-cuda-ro mixbench-ocl mixbench-ocl-ro
-
+rebuild: clean mixbench-cuda mixbench-cuda-ro mixbench-ocl mixbench-ocl-ro mixbench-hip mixbench-hip-ro
