@@ -6,7 +6,14 @@
  **/
 
 #include <stdio.h>
+#ifdef __CUDACC__
 #include <math_constants.h>
+#define GPU_INF(_T)   (_T)(CUDART_INF)
+#else
+#include <limits>
+#define GPU_INF(_T)   std::numeric_limits<_T>::infinity()
+#endif
+
 #include "lhiputil.h"
 
 #define ELEMENTS_PER_THREAD (8)
