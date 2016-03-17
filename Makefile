@@ -18,16 +18,15 @@ NVCODE = -gencode=arch=compute_20,code=\"compute_20\"
 #NVCODE = -gencode=arch=compute_52,code=\"compute_52\" -gencode=arch=compute_30,code=\"compute_30\" -gencode=arch=compute_20,code=\"compute_20\"
 #NVCODE = -gencode=arch=compute_30,code=\"compute_30\"
 
-HIP_PATH?=../../..
-HIPCC=$(HIP_PATH)/bin/hipcc
-HIP_PLATFORM=$(shell $(HIP_PATH)/bin/hipconfig --compiler)
-
-ifeq (${HIP_PLATFORM}, nvcc)
-	HIPCC_FLAGS=${NVCODE} ${NVFLAGS}
-else
-	HIPCC_FLAGS=${OPTFLAG}
+ifdef HIP_PATH
+    HIPCC=$(HIP_PATH)/bin/hipcc
+    HIP_PLATFORM=$(shell $(HIP_PATH)/bin/hipconfig --compiler)
+    ifeq (${HIP_PLATFORM}, nvcc)
+        HIPCC_FLAGS=${NVCODE} ${NVFLAGS}
+    else
+        HIPCC_FLAGS=${OPTFLAG}
+    endif
 endif
-
 .PHONY: all
 
 ifdef CUDA_INSTALL_PATH
