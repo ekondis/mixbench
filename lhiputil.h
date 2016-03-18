@@ -41,7 +41,7 @@ static inline void GetDevicePeakInfo(double *aGIPS, double *aGBPS, hipDeviceProp
 		deviceProp = *aDeviceProp;
 	else{
 		CUDA_SAFE_CALL( hipGetDevice(&current_device) );
-		CUDA_SAFE_CALL( hipDeviceGetProperties(&deviceProp, current_device) );
+		CUDA_SAFE_CALL( hipGetDeviceProperties(&deviceProp, current_device) );
 	}
 	const int TotalSPs = _ConvertSMVer2Cores(deviceProp.major, deviceProp.minor)*deviceProp.multiProcessorCount;
 	*aGIPS = 1000.0 * deviceProp.clockRate * TotalSPs / (1000.0 * 1000.0 * 1000.0);  // Giga instructions/sec
@@ -56,7 +56,7 @@ static inline hipDeviceProp_t GetDeviceProperties(void){
 	hipDeviceProp_t deviceProp;
 	int current_device;
 	CUDA_SAFE_CALL( hipGetDevice(&current_device) );
-	CUDA_SAFE_CALL( hipDeviceGetProperties(&deviceProp, current_device) );
+	CUDA_SAFE_CALL( hipGetDeviceProperties(&deviceProp, current_device) );
 	return deviceProp;
 }
 
@@ -65,7 +65,7 @@ static void StoreDeviceInfo(FILE *fout){
 	hipDeviceProp_t deviceProp;
 	int current_device, driver_version;
 	CUDA_SAFE_CALL( hipGetDevice(&current_device) );
-	CUDA_SAFE_CALL( hipDeviceGetProperties(&deviceProp, current_device) );
+	CUDA_SAFE_CALL( hipGetDeviceProperties(&deviceProp, current_device) );
 	CUDA_SAFE_CALL( hipDriverGetVersion(&driver_version) );
 	fprintf(fout, "------------------------ Device specifications ------------------------\n");
 	fprintf(fout, "Device:              %s\n", deviceProp.name);
