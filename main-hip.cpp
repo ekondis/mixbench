@@ -1,5 +1,5 @@
 /**
- * main-cuda.cpp: This file is part of the mixbench GPU micro-benchmark suite.
+ * main-hip.cpp: This file is part of the mixbench GPU micro-benchmark suite.
  *
  * Contact: Elias Konstantinidis <ekondis@gmail.com>
  **/
@@ -20,7 +20,7 @@ void init_vector(double *v, size_t datasize){
 }
 
 int main(int argc, char* argv[]) {
-	printf("mixbench (compute & memory balancing GPU microbenchmark)\n");
+	printf("mixbench-hip/alternating (compute & memory balancing GPU microbenchmark)\n");
 
 	unsigned int datasize = VECTOR_SIZE*sizeof(double);
 
