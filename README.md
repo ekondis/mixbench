@@ -34,6 +34,15 @@ make
 
 Three executables will be produced: "mixbench-cuda", "mixbench-cuda-bs" and "mixbench-ocl". The two former comprise the CUDA implementations and the latter the OpenCL implementation. The fist applies grid strides between accesses of the same thread where the second applies block size strides. Both methods are supported by the OpenCL implementation and can be selected using a command line option.
 
+For HIP version, follow the instructions on the following blog to properly install ROCK and ROCR drivers:
+http://gpuopen.com/getting-started-with-boltzmann-components-platforms-installation/
+Install the HCC compiler:
+https://bitbucket.org/multicoreware/hcc/wiki/Home
+Install HIP:
+https://github.com/GPUOpen-ProfessionalCompute-Tools/HIP
+
+Makefile checks if HIP is available in the system, and generate HIP binaries accordingly.
+
 Execution results
 --------------
 
