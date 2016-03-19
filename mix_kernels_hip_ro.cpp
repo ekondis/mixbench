@@ -1,10 +1,10 @@
-#include "hip_runtime.h"
 /**
  * mix_kernels_hip_ro.cu: This file is part of the mixbench GPU micro-benchmark suite.
  *
  * Contact: Elias Konstantinidis <ekondis@gmail.com>
  **/
 
+#include "hip_runtime.h"
 #include <stdio.h>
 #ifdef __CUDACC__
 #include <math_constants.h>
