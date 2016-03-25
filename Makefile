@@ -23,10 +23,13 @@ ifdef HIP_PATH
     HIP_PLATFORM=$(shell $(HIP_PATH)/bin/hipconfig --compiler)
     ifeq (${HIP_PLATFORM}, nvcc)
         HIPCC_FLAGS=${NVCODE} ${NVFLAGS}
+        LFLAGS_HIP =${LFLAGS_CUDA}
     else
         HIPCC_FLAGS=${OPTFLAG}
+        LFLAGS_HIP =${OPTFLAG}
     endif
 endif
+
 .PHONY: all
 
 ifdef CUDA_INSTALL_PATH
@@ -60,10 +63,10 @@ mixbench-ocl-ro: main-ocl-ro.o mix_kernels_ocl_ro.o
 	${CC} -o $@ $^ ${LFLAGS_OCL}
 
 mixbench-hip: main-hip.o mix_kernels_hip.o
-	${HIPCC} ${HIPCC_FLAGS} -o $@ $^ 
+	${HIPCC} ${LFLAGS_HIP} -o $@ $^ 
 
 mixbench-hip-ro: main-hip-ro.o mix_kernels_hip-ro.o
-	${HIPCC} ${HIPCC_FLAGS} -o $@ $^ 
+	${HIPCC} ${LFLAGS_HIP} -o $@ $^ 
 
 main-cuda.o: main-cuda.cpp mix_kernels_cuda.h lcutil.h
 	${CC} -c ${FLAGS_CUDA} $< -o $@
