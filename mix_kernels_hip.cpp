@@ -20,63 +20,69 @@
 
 #define COMP_ITERATIONS (8192)
 #define UNROLL_ITERATIONS (32)
-#define REGBLOCK_SIZE (4)
+#define REGBLOCK_SIZE (8)
 
 #define UNROLLED_MEMORY_ACCESSES (UNROLL_ITERATIONS/2)
 
 template <class T, int blockdim, int memory_ratio>
 __global__ void 
 benchmark_func(hipLaunchParm lp, T seed, volatile T *g_data){
-#ifdef BLOCK_STRIDED
 	const int index_stride = blockdim;
 	const int index_base = hipBlockIdx_x*blockdim*UNROLLED_MEMORY_ACCESSES + hipThreadIdx_x;
-#else
-	const int grid_size = blockdim * hipGridDim_x;
-	const int globaltid = hipBlockIdx_x * blockdim + hipThreadIdx_x;
-	const int index_stride = grid_size;
-	const int index_base = globaltid;
-#endif
 	const int halfarraysize = hipGridDim_x*blockdim*UNROLLED_MEMORY_ACCESSES;
 	const int offset_slips = 1+UNROLLED_MEMORY_ACCESSES-((memory_ratio+1)/2);
 	const int array_index_bound = index_base+offset_slips*index_stride;
+	const int initial_index_range = memory_ratio>0 ? UNROLLED_MEMORY_ACCESSES % ((memory_ratio+1)/2) : 1;
+	int initial_index_factor = 0;
 	volatile T *data = g_data;
 
 	int array_index = index_base;
-	T r0 = seed,
-	  r1 = r0+(T)(31),
-	  r2 = r0+(T)(37),
-	  r3 = r0+(T)(41);
+	T r0 = seed + hipBlockIdx_x * blockdim + hipThreadIdx_x,
+	  r1 = r0+(T)(2),
+	  r2 = r0+(T)(3),
+	  r3 = r0+(T)(5),
+	  r4 = r0+(T)(7),
+	  r5 = r0+(T)(11),
+	  r6 = r0+(T)(13),
+	  r7 = r0+(T)(17);
 
 	for(int j=0; j<COMP_ITERATIONS; j+=UNROLL_ITERATIONS){
 		#pragma unroll
 		for(int i=0; i<UNROLL_ITERATIONS-memory_ratio; i++){
-			// Each iteration maps to floating point 8 operations (4 multiplies + 4 additions)
-			r0 = r0 * r0 + r1;//r0;
-			r1 = r1 * r1 + r2;//r1;
-			r2 = r2 * r2 + r3;//r2;
-			r3 = r3 * r3 + r0;//r3;
+			r0 = r0 * r0 + r4;
+			r1 = r1 * r1 + r5;
+			r2 = r2 * r2 + r6;
+			r3 = r3 * r3 + r7;
+			r4 = r4 * r4 + r0;
+			r5 = r5 * r5 + r1;
+			r6 = r6 * r6 + r2;
+			r7 = r7 * r7 + r3;
 		}
 		bool do_write = true;
 		int reg_idx = 0;
 		#pragma unroll
 		for(int i=UNROLL_ITERATIONS-memory_ratio; i<UNROLL_ITERATIONS; i++){
 			// Each iteration maps to one memory operation
-			T& r = reg_idx==0 ? r0 : (reg_idx==1 ? r1 : (reg_idx==2 ? r2 : r3));
+			T& r = reg_idx==0 ? r0 : (reg_idx==1 ? r1 : (reg_idx==2 ? r2 : (reg_idx==3 ? r3 : (reg_idx==4 ? r4 : (reg_idx==5 ? r5 : (reg_idx==6 ? r6 : r7))))));
 			if( do_write )
 				data[ array_index+halfarraysize ] = r;
 			else {
 				r = data[ array_index ];
-				if( ++reg_idx>3 )
+				if( ++reg_idx>=REGBLOCK_SIZE )
 					reg_idx = 0;
 				array_index += index_stride;
 			}
 			do_write = !do_write;
 		}
-		if( array_index >= array_index_bound )
-			array_index = index_base;
+		if( array_index >= array_index_bound ){
+			if( ++initial_index_factor > initial_index_range)
+				initial_index_factor = 0;
+			array_index = index_base + initial_index_factor*index_stride;
+		}
 	}
-	if( (r0==GPU_INF(T)) && (r1==GPU_INF(T)) && (r2==GPU_INF(T)) && (r3==GPU_INF(T)) ){ // extremely unlikely to happen
-		g_data[0] = r0+r1+r2+r3; 
+	if( (r0==(T)CUDART_INF) && (r1==(T)CUDART_INF) && (r2==(T)CUDART_INF) && (r3==(T)CUDART_INF) &&
+	    (r4==(T)CUDART_INF) && (r5==(T)CUDART_INF) && (r6==(T)CUDART_INF) && (r7==(T)CUDART_INF) ){ // extremely unlikely to happen
+		g_data[0] = r0+r1+r2+r3+r4+r5+r6+r7; 
 	}
 }
 
@@ -142,7 +148,8 @@ void runbench(double *cd, long size){
 	const double memaccesses_ratio = (double)(memory_ratio)/UNROLL_ITERATIONS;
 	const double computations_ratio = 1.0-memaccesses_ratio;
 
-	printf("    %6.3f,%8.2f,%8.2f,%7.2f,     %6.3f,%8.2f,%8.2f,%7.2f,    %6.3f,%8.2f,%8.2f,%7.2f\n", 
+	printf("         %4d,  %8.3f,%8.2f,%8.2f,%7.2f,   %8.3f,%8.2f,%8.2f,%7.2f,  %8.3f,%8.2f,%8.2f,%7.2f\n",
+		UNROLL_ITERATIONS-memory_ratio,
 		(computations_ratio*(double)computations)/(memaccesses_ratio*(double)memoryoperations*sizeof(float)),
 		kernel_time_mad_sp,
 		(computations_ratio*(double)computations)/kernel_time_mad_sp*1000./(double)(1000*1000*1000),
@@ -158,11 +165,7 @@ void runbench(double *cd, long size){
 }
 
 extern "C" void mixbenchGPU(double *c, long size){
-#ifdef BLOCK_STRIDED
 	const char *benchtype = "compute with global memory (block strided)";
-#else
-	const char *benchtype = "compute with global memory (grid strided)";
-#endif
 	printf("Trade-off type:%s\n", benchtype);
 	double *cd;
 
@@ -174,9 +177,9 @@ extern "C" void mixbenchGPU(double *c, long size){
 	// Synchronize in order to wait for memory operations to finish
 	CUDA_SAFE_CALL( hipDeviceSynchronize() );
 
-	printf("--------------------------------------------------- CSV data --------------------------------------------------\n");
-	printf("Single Precision ops,,,,              Double precision ops,,,,              Integer operations,,, \n");
-	printf("Flops/byte, ex.time,  GFLOPS, GB/sec, Flops/byte, ex.time,  GFLOPS, GB/sec, Iops/byte, ex.time,   GIOPS, GB/sec\n");
+	printf("---------------------------------------------------------- CSV data ----------------------------------------------------------\n");
+	printf("Experiment ID, Single Precision ops,,,,              Double precision ops,,,,              Integer operations,,, \n");
+	printf("Compute iters, Flops/byte, ex.time,  GFLOPS, GB/sec, Flops/byte, ex.time,  GFLOPS, GB/sec, Iops/byte, ex.time,   GIOPS, GB/sec\n");
 
 	runbench_warmup(cd, size);
 
