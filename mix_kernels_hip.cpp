@@ -25,7 +25,7 @@
 #define UNROLLED_MEMORY_ACCESSES (UNROLL_ITERATIONS/2)
 
 template <class T, int blockdim, int memory_ratio>
-__global__ void 
+__global__ void
 benchmark_func(hipLaunchParm lp, T seed, volatile T *g_data){
 	const int index_stride = blockdim;
 	const int index_base = hipBlockIdx_x*blockdim*UNROLLED_MEMORY_ACCESSES + hipThreadIdx_x;
@@ -80,9 +80,9 @@ benchmark_func(hipLaunchParm lp, T seed, volatile T *g_data){
 			array_index = index_base + initial_index_factor*index_stride;
 		}
 	}
-	if( (r0==(T)CUDART_INF) && (r1==(T)CUDART_INF) && (r2==(T)CUDART_INF) && (r3==(T)CUDART_INF) &&
-	    (r4==(T)CUDART_INF) && (r5==(T)CUDART_INF) && (r6==(T)CUDART_INF) && (r7==(T)CUDART_INF) ){ // extremely unlikely to happen
-		g_data[0] = r0+r1+r2+r3+r4+r5+r6+r7; 
+	if( (r0==GPU_INF(T)) && (r1==GPU_INF(T)) && (r2==GPU_INF(T)) && (r3==GPU_INF(T)) &&
+	    (r4==GPU_INF(T)) && (r5==GPU_INF(T)) && (r6==GPU_INF(T)) && (r7==GPU_INF(T)) ){ // extremely unlikely to happen
+		g_data[0] = r0+r1+r2+r3+r4+r5+r6+r7;
 	}
 }
 
@@ -122,7 +122,7 @@ void runbench(double *cd, long size){
 		fprintf(stderr, "ERROR: memory_ratio exceeds UNROLL_ITERATIONS\n");
 		exit(1);
 	}
-		
+
 	const long compute_grid_size = size/(UNROLLED_MEMORY_ACCESSES)/2;
 	const int BLOCK_SIZE = 256;
 	const int TOTAL_BLOCKS = compute_grid_size/BLOCK_SIZE;
