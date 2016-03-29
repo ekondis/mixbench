@@ -9,33 +9,37 @@
 #include "lcutil.h"
 
 #define ELEMENTS_PER_THREAD (8)
+#define FUSION_DEGREE (4)
 
-template <class T, int blockdim, unsigned int granularity, unsigned int compute_iterations>
+template <class T, int blockdim, unsigned int granularity, unsigned int fusion_degree, unsigned int compute_iterations>
 __global__ void benchmark_func(T seed, T *g_data){
 	const unsigned int blockSize = blockdim;
 	const int stride = blockSize;
 	int idx = blockIdx.x*blockSize*granularity + threadIdx.x;
+	const int big_stride = gridDim.x*blockSize*granularity;
 
 	T tmps[granularity];
-	#pragma unroll
-	for(int j=0; j<granularity; j++){
-		// Load elements (memory intensive part)
-		tmps[j] = g_data[idx+j*stride];
-		// Perform computations (compute intensive part)
-		for(int i=0; i<compute_iterations; i++){
-			tmps[j] = tmps[j]*tmps[j]+seed;//tmps[(j+granularity/2)%granularity];
-		}
-	}
-	// Multiply add reduction
-	T sum = (T)0;
-	#pragma unroll
-	for(int j=0; j<granularity; j+=2)
-		sum += tmps[j]*tmps[j+1];
-	// Dummy code
-	if( sum==(T)-1 ){ // Designed so it never executes
+	for(int k=0; k<fusion_degree; k++){
 		#pragma unroll
-		for(int j=0; j<granularity; j++)
-			g_data[idx] = sum;
+		for(int j=0; j<granularity; j++){
+			// Load elements (memory intensive part)
+			tmps[j] = g_data[idx+j*stride+k*big_stride];
+			// Perform computations (compute intensive part)
+			for(int i=0; i<compute_iterations; i++){
+				tmps[j] = tmps[j]*tmps[j]+seed;//tmps[(j+granularity/2)%granularity];
+			}
+		}
+		// Multiply add reduction
+		T sum = (T)0;
+		#pragma unroll
+		for(int j=0; j<granularity; j+=2)
+			sum += tmps[j]*tmps[j+1];
+		// Dummy code
+		if( sum==(T)-1 ){ // Designed so it never executes
+			#pragma unroll
+			for(int j=0; j<granularity; j++)
+				g_data[idx+k*big_stride] = sum;
+		}
 	}
 }
 
@@ -64,17 +68,19 @@ void runbench_warmup(double *cd, long size){
 	dim3 dimBlock(BLOCK_SIZE, 1, 1);
 	dim3 dimReducedGrid(TOTAL_REDUCED_BLOCKS, 1, 1);
 
-	benchmark_func< short, BLOCK_SIZE, ELEMENTS_PER_THREAD, 0 ><<< dimReducedGrid, dimBlock >>>((short)1, (short*)cd);
+	benchmark_func< short, BLOCK_SIZE, ELEMENTS_PER_THREAD, FUSION_DEGREE, 0 ><<< dimReducedGrid, dimBlock >>>((short)1, (short*)cd);
 	CUDA_SAFE_CALL( cudaGetLastError() );
 	CUDA_SAFE_CALL( cudaThreadSynchronize() );
 }
 
+int out_config = 1;
+
 template<unsigned int compute_iterations>
 void runbench(double *cd, long size){
-	const long compute_grid_size = size/ELEMENTS_PER_THREAD;
+	const long compute_grid_size = size/ELEMENTS_PER_THREAD/FUSION_DEGREE;
 	const int BLOCK_SIZE = 256;
 	const int TOTAL_BLOCKS = compute_grid_size/BLOCK_SIZE;
-	const long long computations = ELEMENTS_PER_THREAD*compute_grid_size+(2*ELEMENTS_PER_THREAD*compute_iterations)*compute_grid_size;
+	const long long computations = (ELEMENTS_PER_THREAD*compute_grid_size+(2*ELEMENTS_PER_THREAD*compute_iterations)*compute_grid_size)*FUSION_DEGREE;
 	const long long memoryoperations = size;
 
 	dim3 dimBlock(BLOCK_SIZE, 1, 1);
@@ -82,15 +88,15 @@ void runbench(double *cd, long size){
 	cudaEvent_t start, stop;
 
 	initializeEvents(&start, &stop);
-	benchmark_func< float, BLOCK_SIZE, ELEMENTS_PER_THREAD, compute_iterations ><<< dimGrid, dimBlock >>>(1.0f, (float*)cd);
+	benchmark_func< float, BLOCK_SIZE, ELEMENTS_PER_THREAD, FUSION_DEGREE, compute_iterations ><<< dimGrid, dimBlock >>>(1.0f, (float*)cd);
 	float kernel_time_mad_sp = finalizeEvents(start, stop);
 
 	initializeEvents(&start, &stop);
-	benchmark_func< double, BLOCK_SIZE, ELEMENTS_PER_THREAD, compute_iterations ><<< dimGrid, dimBlock >>>(1.0, cd);
+	benchmark_func< double, BLOCK_SIZE, ELEMENTS_PER_THREAD, FUSION_DEGREE, compute_iterations ><<< dimGrid, dimBlock >>>(1.0, cd);
 	float kernel_time_mad_dp = finalizeEvents(start, stop);
 
 	initializeEvents(&start, &stop);
-	benchmark_func< int, BLOCK_SIZE, ELEMENTS_PER_THREAD, compute_iterations ><<< dimGrid, dimBlock >>>(1, (int*)cd);
+	benchmark_func< int, BLOCK_SIZE, ELEMENTS_PER_THREAD, FUSION_DEGREE, compute_iterations ><<< dimGrid, dimBlock >>>(1, (int*)cd);
 	float kernel_time_mad_int = finalizeEvents(start, stop);
 
 	printf("         %4d,  %8.3f,%8.2f,%8.2f,%7.2f,   %8.3f,%8.2f,%8.2f,%7.2f,  %8.3f,%8.2f,%8.2f,%7.2f\n",
@@ -160,8 +166,8 @@ extern "C" void mixbenchGPU(double *c, long size){
 	runbench<80>(cd, size);
 	runbench<96>(cd, size);
 	runbench<128>(cd, size);
+	runbench<192>(cd, size);
 	runbench<256>(cd, size);
-	runbench<512>(cd, size);
 
 	printf("------------------------------------------------------------------------------------------------------------------------------\n");
 
