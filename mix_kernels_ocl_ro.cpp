@@ -18,7 +18,7 @@
 
 enum KrnDataType{ kdt_int, kdt_float, kdt_double };
 
-const int compute_iterations[] = {0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15, 16, 17, 18, 20, 22, 24, 28, 32, 40, 48, 56, 64, 80, 96, 128, 256, 512};
+const int compute_iterations[] = {0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15, 16, 17, 18, 20, 22, 24, 28, 32, 40, 48, 56, 64, 80, 96, 128, 192, 256};
 const int compute_iterations_len = sizeof(compute_iterations)/sizeof(*compute_iterations);
 
 char* ReadFile(const char *filename){
@@ -121,10 +121,10 @@ void runbench_warmup(cl_command_queue queue, cl_kernel kernel, cl_mem cbuffer, l
 	OCL_SAFE_CALL( clEnqueueNDRangeKernel(queue, kernel, 1, NULL, dimReducedGrid, dimBlock, 0, NULL, NULL) );
 }
 
-void runbench(const int compute_iterations[], unsigned int krn_idx, cl_command_queue queue, cl_kernel kernels[kdt_double+1][compute_iterations_len], cl_mem cbuffer, long size, size_t workgroupsize, unsigned int elements_per_wi){
-	const long compute_grid_size = size/elements_per_wi;
+void runbench(const int compute_iterations[], unsigned int krn_idx, cl_command_queue queue, cl_kernel kernels[kdt_double+1][compute_iterations_len], cl_mem cbuffer, long size, size_t workgroupsize, unsigned int elements_per_wi, unsigned int fusion_degree){
+	const long compute_grid_size = size/elements_per_wi/fusion_degree;
 	const int current_compute_iterations = compute_iterations[krn_idx];
-	const long long computations = elements_per_wi*compute_grid_size+(2*elements_per_wi*current_compute_iterations)*compute_grid_size;
+	const long long computations = (elements_per_wi*compute_grid_size+(2*elements_per_wi*current_compute_iterations)*compute_grid_size)*fusion_degree;
 	const long long memoryoperations = size;
 
 	const size_t dimBlock[1] = {workgroupsize};
@@ -179,7 +179,7 @@ void runbench(const int compute_iterations[], unsigned int krn_idx, cl_command_q
 		((double)memoryoperations*sizeof(int))/kernel_time_mad_int*1000./(1000.*1000.*1000.) );
 }
 
-extern "C" void mixbenchGPU(cl_device_id dev_id, double *c, long size, bool block_strided, bool host_allocated, size_t workgroupsize, unsigned int elements_per_wi){
+extern "C" void mixbenchGPU(cl_device_id dev_id, double *c, long size, bool block_strided, bool host_allocated, size_t workgroupsize, unsigned int elements_per_wi, unsigned int fusion_degree){
 	const char *benchtype;
 	if(block_strided)
 		benchtype = "Workgroup";
@@ -224,14 +224,14 @@ extern "C" void mixbenchGPU(cl_device_id dev_id, double *c, long size, bool bloc
 
 	// Load source, create program and all kernels
 	printf("Loading kernel source file...\n");
-	const char c_param_format_str[] = "-cl-std=CL1.1 -cl-mad-enable -Dclass_T=%s -Dblockdim=" SIZE_T_FORMAT " -DCOMPUTE_ITERATIONS=%d -DELEMENTS_PER_THREAD=%d %s %s";
+	const char c_param_format_str[] = "-cl-std=CL1.1 -cl-mad-enable -Dclass_T=%s -Dblockdim=" SIZE_T_FORMAT " -DCOMPUTE_ITERATIONS=%d -DELEMENTS_PER_THREAD=%d -DFUSION_DEGREE=%d %s %s";
 	const char *c_empty = "";
 	const char *c_striding = block_strided ? "-DBLOCK_STRIDED" : c_empty;
 	const char *c_enable_dp = "-DENABLE_DP";
 	char c_build_params[256];
 	const char *c_kernel_source = {ReadFile("mix_kernels_ro.cl")};
 	printf("Precompilation of kernels... ");
-	sprintf(c_build_params, c_param_format_str, "short", workgroupsize, 0, 1, c_striding, c_empty);
+	sprintf(c_build_params, c_param_format_str, "short", workgroupsize, 0, 1, 1, c_striding, c_empty);
 
 	cl_kernel kernel_warmup = BuildKernel(context, dev_id, c_kernel_source, c_build_params);
 
@@ -239,18 +239,18 @@ extern "C" void mixbenchGPU(cl_device_id dev_id, double *c, long size, bool bloc
 	cl_kernel kernels[kdt_double+1][compute_iterations_len];
 	for(int i=0; i<compute_iterations_len; i++){
 		show_progress_step(0, '\\');
-		sprintf(c_build_params, c_param_format_str, "float", workgroupsize, compute_iterations[i], elements_per_wi, c_striding, c_empty);
+		sprintf(c_build_params, c_param_format_str, "float", workgroupsize, compute_iterations[i], elements_per_wi, fusion_degree, c_striding, c_empty);
 		//printf("%s\n",c_build_params);
 		kernels[kdt_float][i] = BuildKernel(context, dev_id, c_kernel_source, c_build_params);
 
 		show_progress_step(0, '|');
-		sprintf(c_build_params, c_param_format_str, "int", workgroupsize, compute_iterations[i], elements_per_wi, c_striding, c_empty);
+		sprintf(c_build_params, c_param_format_str, "int", workgroupsize, compute_iterations[i], elements_per_wi, fusion_degree, c_striding, c_empty);
 		//printf("%s\n",c_build_params);
 		kernels[kdt_int][i] = BuildKernel(context, dev_id, c_kernel_source, c_build_params);
 
 		if( enable_dp ){
 			show_progress_step(0, '/');
-			sprintf(c_build_params, c_param_format_str, "double", workgroupsize, compute_iterations[i], elements_per_wi, c_striding, c_enable_dp);
+			sprintf(c_build_params, c_param_format_str, "double", workgroupsize, compute_iterations[i], elements_per_wi, fusion_degree, c_striding, c_enable_dp);
 			//printf("%s\n",c_build_params);
 			kernels[kdt_double][i] = BuildKernel(context, dev_id, c_kernel_source, c_build_params);
 		} else
@@ -270,7 +270,7 @@ extern "C" void mixbenchGPU(cl_device_id dev_id, double *c, long size, bool bloc
 	printf("Compute iters, Flops/byte, ex.time,  GFLOPS, GB/sec, Flops/byte, ex.time,  GFLOPS, GB/sec, Iops/byte, ex.time,   GIOPS, GB/sec\n");
 
 	for(int i=0; i<compute_iterations_len; i++)
-		runbench(compute_iterations, i, cmd_queue, kernels, c_buffer, size, workgroupsize, elements_per_wi);
+		runbench(compute_iterations, i, cmd_queue, kernels, c_buffer, size, workgroupsize, elements_per_wi, fusion_degree);
 
 	printf("------------------------------------------------------------------------------------------------------------------------------\n");
 
