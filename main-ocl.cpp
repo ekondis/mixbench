@@ -28,6 +28,7 @@ typedef struct{
 	unsigned int vecwidth;
 #ifdef READONLY
 	unsigned int elements_per_wi;
+	unsigned int fusion_degree;
 #endif
 } ArgParams;
 
@@ -66,6 +67,10 @@ bool argument_parsing(int argc, char* argv[], ArgParams *output){
 					output->elements_per_wi = value;
 					arg_count++;
 					break;
+				case 4:
+					output->fusion_degree = value;
+					arg_count++;
+					break;
 #endif
 				default:
 					return false;
@@ -83,14 +88,14 @@ int main(int argc, char* argv[]) {
 #endif
 
 #ifdef READONLY
-	ArgParams args = {1, false, false, 256, DEF_VECTOR_SIZE/(1024*1024), 8};
+	ArgParams args = {1, false, false, 256, DEF_VECTOR_SIZE/(1024*1024), 8, 4};
 #else
 	ArgParams args = {1, false, false, 256, DEF_VECTOR_SIZE/(1024*1024)};
 #endif
 
 	if( !argument_parsing(argc, argv, &args) ){
 #ifdef READONLY
-		printf("Usage: mixbench-ocl [options] [device index [workgroup size [array size(1024^2) [elements per workitem]]]]\n");
+		printf("Usage: mixbench-ocl [options] [device index [workgroup size [array size(1024^2) [elements per workitem [fusion degree]]]]]\n");
 #else
 		printf("Usage: mixbench-ocl [options] [device index [workgroup size [array size(1024^2)]]]\n");
 #endif
@@ -121,13 +126,14 @@ int main(int argc, char* argv[]) {
 	printf("Workgroup size        : %d\n", args.wg_size);
 #ifdef READONLY
 	printf("Elements per workitem : %d\n", args.elements_per_wi);
+	printf("Workitem fusion degree: %d\n", args.fusion_degree);
 #endif
 
 	double *c;
 	c = (double*)malloc(datasize);
 
 #ifdef READONLY
-	mixbenchGPU(dev_id, c, VEC_WIDTH, args.block_strided, args.host_allocated, args.wg_size, args.elements_per_wi);
+	mixbenchGPU(dev_id, c, VEC_WIDTH, args.block_strided, args.host_allocated, args.wg_size, args.elements_per_wi, args.fusion_degree);
 #else
 	mixbenchGPU(dev_id, c, VEC_WIDTH, args.block_strided, args.host_allocated, args.wg_size);
 #endif
