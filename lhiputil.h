@@ -8,7 +8,6 @@
 #define _HIPUTIL_H_
 
 #include <stdio.h>
-#include <cuda.h>
 #include <hip_runtime.h>
 #include <hip_runtime_api.h>
 

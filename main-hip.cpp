@@ -6,7 +6,6 @@
 
 #include <stdio.h>
 #include <stdlib.h>
-#include <cuda.h>
 #include <hip_runtime.h>
 #include <string.h>
 #include "lhiputil.h"
