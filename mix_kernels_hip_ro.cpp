@@ -82,7 +82,7 @@ void runbench(double *cd, long size){
 	const long compute_grid_size = size/ELEMENTS_PER_THREAD;
 	const int BLOCK_SIZE = 256;
 	const int TOTAL_BLOCKS = compute_grid_size/BLOCK_SIZE;
-	const long long computations = ELEMENTS_PER_THREAD*compute_grid_size+(2*ELEMENTS_PER_THREAD*compute_iterations)*compute_grid_size;
+	const long long computations = ELEMENTS_PER_THREAD*(long long)compute_grid_size+(2*ELEMENTS_PER_THREAD*compute_iterations)*(long long)compute_grid_size;
 	const long long memoryoperations = size;
 
 	dim3 dimBlock(BLOCK_SIZE, 1, 1);

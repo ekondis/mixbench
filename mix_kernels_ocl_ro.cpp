@@ -124,7 +124,7 @@ void runbench_warmup(cl_command_queue queue, cl_kernel kernel, cl_mem cbuffer, l
 void runbench(const int compute_iterations[], unsigned int krn_idx, cl_command_queue queue, cl_kernel kernels[kdt_double+1][compute_iterations_len], cl_mem cbuffer, long size, size_t workgroupsize, unsigned int elements_per_wi, unsigned int fusion_degree){
 	const long compute_grid_size = size/elements_per_wi/fusion_degree;
 	const int current_compute_iterations = compute_iterations[krn_idx];
-	const long long computations = (elements_per_wi*compute_grid_size+(2*elements_per_wi*current_compute_iterations)*compute_grid_size)*fusion_degree;
+	const long long computations = (elements_per_wi*(long long)compute_grid_size+(2*elements_per_wi*current_compute_iterations)*(long long)compute_grid_size)*fusion_degree;
 	const long long memoryoperations = size;
 
 	const size_t dimBlock[1] = {workgroupsize};
