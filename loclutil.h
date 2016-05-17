@@ -85,4 +85,10 @@ inline void StoreDeviceInfo(cl_device_id devID, FILE *fout){
 	fprintf(fout, "-----------------------------------------------------------------------\n");
 }
 
+inline size_t GetMaxDeviceWGSize(cl_device_id devID){
+	size_t wgsize;
+	OCL_SAFE_CALL( clGetDeviceInfo (devID, CL_DEVICE_MAX_WORK_GROUP_SIZE, sizeof(wgsize), &wgsize, NULL) );
+	return wgsize;
+}
+
 #endif

@@ -129,6 +129,11 @@ int main(int argc, char* argv[]) {
 	printf("Elements per workitem:  %d\n", args.elements_per_wi);
 	printf("Workitem fusion degree: %d\n", args.fusion_degree);
 #endif
+	// Check if selected workgroup size is supported
+	if( GetMaxDeviceWGSize(dev_id)<(size_t)args.wg_size ){
+		fprintf(stderr, "Error: Unsupported workgroup size (%u).\n", args.wg_size);
+		exit(1);		
+	}
 
 	double *c;
 	c = (double*)malloc(datasize);
