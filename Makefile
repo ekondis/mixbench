@@ -35,34 +35,34 @@ endif
 ifdef CUDA_INSTALL_PATH
     ifdef HIP_PLATFORM
         # build hip, cuda and opencl executables
-        all: mixbench-hip mixbench-hip-ro mixbench-cuda mixbench-cuda-ro mixbench-ocl mixbench-ocl-ro
+        all: mixbench-hip-alt mixbench-hip-ro mixbench-cuda-alt mixbench-cuda-ro mixbench-ocl-alt mixbench-ocl-ro
     else
         # build both cuda and opencl executables
-        all: mixbench-cuda mixbench-cuda-ro mixbench-ocl mixbench-ocl-ro
+        all: mixbench-cuda-alt mixbench-cuda-ro mixbench-ocl-alt mixbench-ocl-ro
     endif
 else
     ifdef HIP_PLATFORM
         # build hip only executable
-        all: mixbench-hip mixbench-hip-ro
+        all: mixbench-hip-alt mixbench-hip-ro
     else
         # build opencl only executable
-        all: mixbench-ocl mixbench-ocl-ro
+        all: mixbench-ocl-alt mixbench-ocl-ro
     endif
 endif
 
-mixbench-cuda: main-cuda.o mix_kernels_cuda.o
+mixbench-cuda-alt: main-cuda.o mix_kernels_cuda.o
 	${CC} -o $@ $^ ${LFLAGS_CUDA}
 
 mixbench-cuda-ro: main-cuda-ro.o mix_kernels_cuda_ro.o
 	${CC} -o $@ $^ ${LFLAGS_CUDA}
 
-mixbench-ocl: main-ocl.o mix_kernels_ocl.o
+mixbench-ocl-alt: main-ocl.o mix_kernels_ocl.o
 	${CC} -o $@ $^ ${LFLAGS_OCL}
 
 mixbench-ocl-ro: main-ocl-ro.o mix_kernels_ocl_ro.o
 	${CC} -o $@ $^ ${LFLAGS_OCL}
 
-mixbench-hip: main-hip.o mix_kernels_hip.o
+mixbench-hip-alt: main-hip.o mix_kernels_hip.o
 	${HIPCC} ${LFLAGS_HIP} -o $@ $^ 
 
 mixbench-hip-ro: main-hip-ro.o mix_kernels_hip-ro.o
@@ -106,6 +106,6 @@ mix_kernels_hip-ro.o: mix_kernels_hip_ro.cpp lhiputil.h
 	${HIPCC} ${HIPCC_FLAGS} -DUNIX -c $< -o $@
 
 clean:
-	\rm -f mixbench-cuda mixbench-cuda-ro mixbench-ocl mixbench-ocl-ro mixbench-hip mixbench-hip-ro *.o 
+	\rm -f mixbench-cuda-alt mixbench-cuda-ro mixbench-ocl-alt mixbench-ocl-ro mixbench-hip-alt mixbench-hip-ro *.o 
 
-rebuild: clean mixbench-cuda mixbench-cuda-ro mixbench-ocl mixbench-ocl-ro mixbench-hip mixbench-hip-ro
+rebuild: clean mixbench-cuda-alt mixbench-cuda-ro mixbench-ocl-alt mixbench-ocl-ro mixbench-hip-alt mixbench-hip-ro
