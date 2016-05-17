@@ -122,10 +122,10 @@ int main(int argc, char* argv[]) {
 	}
 	StoreDeviceInfo(dev_id, stdout);
 
-	printf("Buffer size           : %dMB\n", datasize/(1024*1024));
-	printf("Workgroup size        : %d\n", args.wg_size);
+	printf("Buffer size:            %dMB\n", datasize/(1024*1024));
+	printf("Workgroup size:         %d\n", args.wg_size);
 #ifdef READONLY
-	printf("Elements per workitem : %d\n", args.elements_per_wi);
+	printf("Elements per workitem:  %d\n", args.elements_per_wi);
 	printf("Workitem fusion degree: %d\n", args.fusion_degree);
 #endif
 

@@ -196,9 +196,9 @@ extern "C" void mixbenchGPU(cl_device_id dev_id, double *c, long size, bool bloc
 		benchtype = "Workgroup";
 	else
 		benchtype = "NDRange";
-	printf("Workitem stride       : %s\n", benchtype);
+	printf("Workitem stride:        %s\n", benchtype);
 	const char *buffer_allocation = host_allocated ? "Host allocated" : "Device allocated";
-	printf("Buffer allocation     : %s\n", buffer_allocation);
+	printf("Buffer allocation:      %s\n", buffer_allocation);
 
 	// Set context properties
 	cl_platform_id p_id;
