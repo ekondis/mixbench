@@ -57,19 +57,26 @@ inline cl_device_id GetDeviceID(int index, FILE *fout){
 
 // Print basic device information
 inline void StoreDeviceInfo(cl_device_id devID, FILE *fout){
-	char dev_name[256], dev_clver[256], dev_drv[256];
-	cl_uint dev_freq, dev_cus;
+	char dev_platform[256], dev_name[256], dev_vendor[256], dev_clver[256], dev_drv[256];
+	cl_uint dev_freq, dev_cus, dev_addrbits;
 	cl_ulong dev_gmem, dev_maxalloc;
+	cl_platform_id dev_platform_id;
+	OCL_SAFE_CALL( clGetDeviceInfo (devID, CL_DEVICE_PLATFORM, sizeof(dev_platform_id), &dev_platform_id, NULL) );
+	OCL_SAFE_CALL( clGetPlatformInfo(dev_platform_id, CL_PLATFORM_NAME, sizeof(dev_platform), dev_platform, NULL) );
 	OCL_SAFE_CALL( clGetDeviceInfo (devID, CL_DEVICE_NAME, sizeof(dev_name), dev_name, NULL) );
+	OCL_SAFE_CALL( clGetDeviceInfo (devID, CL_DEVICE_VENDOR, sizeof(dev_vendor), dev_vendor, NULL) );
 	OCL_SAFE_CALL( clGetDeviceInfo (devID, CL_DEVICE_VERSION, sizeof(dev_clver), dev_clver, NULL) );
+	OCL_SAFE_CALL( clGetDeviceInfo (devID, CL_DEVICE_ADDRESS_BITS, sizeof(dev_addrbits), &dev_addrbits, NULL) );
 	OCL_SAFE_CALL( clGetDeviceInfo (devID, CL_DEVICE_MAX_CLOCK_FREQUENCY, sizeof(dev_freq), &dev_freq, NULL) );
 	OCL_SAFE_CALL( clGetDeviceInfo (devID, CL_DEVICE_GLOBAL_MEM_SIZE, sizeof(dev_gmem), &dev_gmem, NULL) );
 	OCL_SAFE_CALL( clGetDeviceInfo (devID, CL_DEVICE_MAX_MEM_ALLOC_SIZE, sizeof(dev_maxalloc), &dev_maxalloc, NULL) );
 	OCL_SAFE_CALL( clGetDeviceInfo (devID, CL_DRIVER_VERSION, sizeof(dev_drv), dev_drv, NULL) );
 	OCL_SAFE_CALL( clGetDeviceInfo (devID, CL_DEVICE_MAX_COMPUTE_UNITS, sizeof(dev_cus), &dev_cus, NULL) );
 	fprintf(fout, "------------------------ Device specifications ------------------------\n");
-	fprintf(fout, "Device:              %s\n", dev_name);
+	fprintf(fout, "Platform:            %s\n", dev_platform);
+	fprintf(fout, "Device:              %s/%s\n", dev_name, dev_vendor);
 	fprintf(fout, "Driver version:      %s\n", dev_drv);
+	fprintf(fout, "Address bits:        %d\n", dev_addrbits);
 	fprintf(fout, "GPU clock rate:      %d MHz\n", dev_freq);
 	fprintf(fout, "Total global mem:    %d MB\n", (int)(dev_gmem/1024/1024));
 	fprintf(fout, "Max allowed buffer:  %d MB\n", (int)(dev_maxalloc/1024/1024));
