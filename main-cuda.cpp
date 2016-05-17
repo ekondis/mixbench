@@ -33,7 +33,7 @@ int main(int argc, char* argv[]) {
 	size_t freeCUDAMem, totalCUDAMem;
 	cudaMemGetInfo(&freeCUDAMem, &totalCUDAMem);
 	printf("Total GPU memory %lu, free %lu\n", totalCUDAMem, freeCUDAMem);
-	printf("Buffer size: %dMB\n", datasize/(1024*1024));
+	printf("Buffer size:          %dMB\n", datasize/(1024*1024));
 	
 	double *c;
 	c = (double*)malloc(datasize);

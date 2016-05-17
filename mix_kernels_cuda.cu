@@ -158,7 +158,7 @@ void runbench(double *cd, long size){
 extern "C" void mixbenchGPU(double *c, long size){
 	const char *benchtype = "compute with global memory (block strided)";
 
-	printf("Trade-off type:%s\n", benchtype);
+	printf("Trade-off type:       %s\n", benchtype);
 	double *cd;
 
 	CUDA_SAFE_CALL( cudaMalloc((void**)&cd, size*sizeof(double)) );
