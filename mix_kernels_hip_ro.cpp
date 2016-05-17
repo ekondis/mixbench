@@ -101,7 +101,7 @@ void runbench(double *cd, long size){
 	hipLaunchKernel(HIP_KERNEL_NAME(benchmark_func< int, BLOCK_SIZE, ELEMENTS_PER_THREAD, compute_iterations >), dim3(dimGrid), dim3(dimBlock ), 0, 0, 1, (int*)cd);
 	float kernel_time_mad_int = finalizeEvents(start, stop);
 
-	printf("         %4d,  %8.3f,%8.2f,%8.2f,%7.2f,   %8.3f,%8.2f,%8.2f,%7.2f,  %8.3f,%8.2f,%8.2f,%7.2f\n",
+	printf("         %4d,   %8.3f,%8.2f,%8.2f,%7.2f,   %8.3f,%8.2f,%8.2f,%7.2f,  %8.3f,%8.2f,%8.2f,%7.2f\n",
 		compute_iterations,
 		((double)computations)/((double)memoryoperations*sizeof(float)),
 		kernel_time_mad_sp,

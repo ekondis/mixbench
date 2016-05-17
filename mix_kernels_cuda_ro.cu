@@ -99,7 +99,7 @@ void runbench(double *cd, long size){
 	benchmark_func< int, BLOCK_SIZE, ELEMENTS_PER_THREAD, FUSION_DEGREE, compute_iterations ><<< dimGrid, dimBlock >>>(1, (int*)cd);
 	float kernel_time_mad_int = finalizeEvents(start, stop);
 
-	printf("         %4d,  %8.3f,%8.2f,%8.2f,%7.2f,   %8.3f,%8.2f,%8.2f,%7.2f,  %8.3f,%8.2f,%8.2f,%7.2f\n",
+	printf("         %4d,   %8.3f,%8.2f,%8.2f,%7.2f,   %8.3f,%8.2f,%8.2f,%7.2f,  %8.3f,%8.2f,%8.2f,%7.2f\n",
 		compute_iterations,
 		((double)computations)/((double)memoryoperations*sizeof(float)),
 		kernel_time_mad_sp,

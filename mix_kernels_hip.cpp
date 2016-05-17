@@ -148,7 +148,7 @@ void runbench(double *cd, long size){
 	const double memaccesses_ratio = (double)(memory_ratio)/UNROLL_ITERATIONS;
 	const double computations_ratio = 1.0-memaccesses_ratio;
 
-	printf("         %4d,  %8.3f,%8.2f,%8.2f,%7.2f,   %8.3f,%8.2f,%8.2f,%7.2f,  %8.3f,%8.2f,%8.2f,%7.2f\n",
+	printf("         %4d,   %8.3f,%8.2f,%8.2f,%7.2f,   %8.3f,%8.2f,%8.2f,%7.2f,  %8.3f,%8.2f,%8.2f,%7.2f\n",
 		UNROLL_ITERATIONS-memory_ratio,
 		(computations_ratio*(double)computations)/(memaccesses_ratio*(double)memoryoperations*sizeof(float)),
 		kernel_time_mad_sp,
@@ -217,7 +217,7 @@ extern "C" void mixbenchGPU(double *c, long size){
 	runbench<1>(cd, size);
 	runbench<0>(cd, size);
 
-	printf("---------------------------------------------------------------------------------------------------------------\n");
+	printf("---------------------------------------------------------- CSV data ----------------------------------------------------------\n");
 
 	// Copy results back to host memory
 	CUDA_SAFE_CALL( hipMemcpy(c, cd, size*sizeof(double), hipMemcpyDeviceToHost) );
