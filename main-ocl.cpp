@@ -13,6 +13,7 @@
 #else
 #include "mix_kernels_ocl.h"
 #endif
+#include "version_info.h"
 
 #ifdef READONLY
 #define DEF_VECTOR_SIZE (32*1024*1024)
@@ -82,9 +83,9 @@ bool argument_parsing(int argc, char* argv[], ArgParams *output){
 
 int main(int argc, char* argv[]) {
 #ifdef READONLY
-	printf("mixbench-ocl/read-only (compute & memory balancing GPU microbenchmark)\n");
+	printf("mixbench-ocl/read-only (%s)\n", VERSION_INFO);
 #else
-	printf("mixbench-ocl/alternating (compute & memory balancing GPU microbenchmark)\n");
+	printf("mixbench-ocl/alternating (%s)\n", VERSION_INFO);
 #endif
 
 #ifdef READONLY

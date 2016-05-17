@@ -10,6 +10,7 @@
 #include <string.h>
 #include "lhiputil.h"
 #include "mix_kernels_hip.h"
+#include "version_info.h"
 
 #define VECTOR_SIZE (32*1024*1024)
 
@@ -19,7 +20,7 @@ void init_vector(double *v, size_t datasize){
 }
 
 int main(int argc, char* argv[]) {
-	printf("mixbench-hip/read-only (compute & memory balancing GPU microbenchmark)\n");
+	printf("mixbench-hip/read-only (%s)\n", VERSION_INFO);
 
 	unsigned int datasize = VECTOR_SIZE*sizeof(double);
 

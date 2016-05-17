@@ -35,3 +35,6 @@ mixbench-ocl
 
 # Debug files
 *.dSYM/
+
+# Other
+version_info.h

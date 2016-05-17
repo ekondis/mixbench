@@ -30,7 +30,7 @@ ifdef HIP_PATH
     endif
 endif
 
-.PHONY: all
+.PHONY: all rebuild clean
 
 ifdef CUDA_INSTALL_PATH
     ifdef HIP_PLATFORM
@@ -68,16 +68,16 @@ mixbench-hip-alt: main-hip.o mix_kernels_hip.o
 mixbench-hip-ro: main-hip-ro.o mix_kernels_hip-ro.o
 	${HIPCC} ${LFLAGS_HIP} -o $@ $^ 
 
-main-cuda.o: main-cuda.cpp mix_kernels_cuda.h lcutil.h
+main-cuda.o: main-cuda.cpp mix_kernels_cuda.h lcutil.h version_info.h
 	${CC} -c ${FLAGS_CUDA} $< -o $@
  
-main-cuda-ro.o: main-cuda.cpp mix_kernels_cuda.h lcutil.h
+main-cuda-ro.o: main-cuda.cpp mix_kernels_cuda.h lcutil.h version_info.h
 	${CC} -c ${FLAGS_CUDA} -DREADONLY $< -o $@
 
-main-ocl.o: main-ocl.cpp mix_kernels_ocl.h loclutil.h
+main-ocl.o: main-ocl.cpp mix_kernels_ocl.h loclutil.h version_info.h
 	${CC} -c ${FLAGS_OCL} $< -o $@
 
-main-ocl-ro.o: main-ocl.cpp mix_kernels_ocl.h loclutil.h
+main-ocl-ro.o: main-ocl.cpp mix_kernels_ocl.h loclutil.h version_info.h
 	${CC} -c ${FLAGS_OCL} -DREADONLY $< -o $@
 
 mix_kernels_cuda.o: mix_kernels_cuda.cu mix_kernels_cuda.h lcutil.h
@@ -93,19 +93,22 @@ mix_kernels_ocl_ro.o: mix_kernels_ocl_ro.cpp mix_kernels_ocl.h loclutil.h
 	${CC} -c ${FLAGS_OCL} $< -o $@
 
 #HIP
-main-hip.o: main-hip.cpp mix_kernels_hip.h lhiputil.h
+main-hip.o: main-hip.cpp mix_kernels_hip.h lhiputil.h version_info.h
 	${HIPCC} -c ${HIPCC_FLAGS} $<
 
 mix_kernels_hip.o: mix_kernels_hip.cpp lhiputil.h
 	${HIPCC} ${HIPCC_FLAGS} -DUNIX -c $< -o $@
 
-main-hip-ro.o: main-hip-ro.cpp mix_kernels_hip.h lhiputil.h
+main-hip-ro.o: main-hip-ro.cpp mix_kernels_hip.h lhiputil.h version_info.h
 	${HIPCC} -c ${HIPCC_FLAGS} -DREADONLY $<
 
 mix_kernels_hip-ro.o: mix_kernels_hip_ro.cpp lhiputil.h
 	${HIPCC} ${HIPCC_FLAGS} -DUNIX -c $< -o $@
 
+version_info.h:
+	echo '#define VERSION_INFO "'`./query_version.sh`'"' >$@
+
 clean:
-	\rm -f mixbench-cuda-alt mixbench-cuda-ro mixbench-ocl-alt mixbench-ocl-ro mixbench-hip-alt mixbench-hip-ro *.o 
+	\rm -f mixbench-cuda-alt mixbench-cuda-ro mixbench-ocl-alt mixbench-ocl-ro mixbench-hip-alt mixbench-hip-ro *.o version_info.h
 
 rebuild: clean mixbench-cuda-alt mixbench-cuda-ro mixbench-ocl-alt mixbench-ocl-ro mixbench-hip-alt mixbench-hip-ro
