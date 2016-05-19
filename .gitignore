@@ -29,9 +29,12 @@
 *.hex
 
 # Specific executables
-mixbench-cuda
-mixbench-cuda-bs
-mixbench-ocl
+mixbench-cuda-alt
+mixbench-cuda-ro
+mixbench-hip-alt
+mixbench-hip-ro
+mixbench-ocl-alt
+mixbench-ocl-ro
 
 # Debug files
 *.dSYM/
