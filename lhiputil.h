@@ -22,6 +22,9 @@
 #define FRACTION_CEILING(numerator, denominator) ((numerator+denominator-1)/(denominator))
 
 static inline int _ConvertSMVer2Cores(int major, int minor){
+#ifdef __HIP_PLATFORM_HCC__
+	return 64;
+#else
 	switch(major){
 		case 1:  return 8;
 		case 2:  switch(minor){
@@ -31,6 +34,7 @@ static inline int _ConvertSMVer2Cores(int major, int minor){
 		case 3:  return 192;
 		default: return 128;
 	}
+#endif
 }
 
 static inline void GetDevicePeakInfo(double *aGIPS, double *aGBPS, hipDeviceProp_t *aDeviceProp = NULL){
@@ -44,11 +48,7 @@ static inline void GetDevicePeakInfo(double *aGIPS, double *aGBPS, hipDeviceProp
 	}
 	const int TotalSPs = _ConvertSMVer2Cores(deviceProp.major, deviceProp.minor)*deviceProp.multiProcessorCount;
 	*aGIPS = 1000.0 * deviceProp.clockRate * TotalSPs / (1000.0 * 1000.0 * 1000.0);  // Giga instructions/sec
-	// TODO
-	//*aGBPS = 2.0 * (double)deviceProp.memoryClockRate * 1000.0 * (double)deviceProp.memoryBusWidth / 8.0;
-	*aGBPS = 2.0 * (double)1752000 * 1000.0 * (double)  384.0 / 8.0;
-	*aGBPS = 2.0 * (double)1000000 * 1000.0 * (double) 4096.0 / 8.0;
-
+	*aGBPS = 2.0 * (double)deviceProp.memoryClockRate * 1000.0 * (double)deviceProp.memoryBusWidth / 8.0;
 }
 
 static inline hipDeviceProp_t GetDeviceProperties(void){
@@ -76,7 +76,9 @@ static void StoreDeviceInfo(FILE *fout){
 	fprintf(fout, "L2 cache size:       %d KB\n", deviceProp.l2CacheSize/1024);
 	fprintf(fout, "Total global mem:    %d MB\n", (int)(deviceProp.totalGlobalMem/1024/1024));
 	//fprintf(fout, "ECC enabled:         %s\n", deviceProp.ECCEnabled?"Yes":"No");
+#ifdef __HIP_PLATFORM_NVCC__
 	fprintf(fout, "Compute Capability:  %d.%d\n", deviceProp.major, deviceProp.minor);
+#endif
 	const int TotalSPs = _ConvertSMVer2Cores(deviceProp.major, deviceProp.minor)*deviceProp.multiProcessorCount;
 	fprintf(fout, "Total SPs:           %d (%d MPs x %d SPs/MP)\n", TotalSPs, deviceProp.multiProcessorCount, _ConvertSMVer2Cores(deviceProp.major, deviceProp.minor));
 	double InstrThroughput, MemBandwidth;
