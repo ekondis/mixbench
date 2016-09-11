@@ -35,11 +35,8 @@ __global__ void benchmark_func(T seed, T *g_data){
 		for(int j=0; j<granularity; j+=2)
 			sum += tmps[j]*tmps[j+1];
 		// Dummy code
-		if( sum==(T)-1 ){ // Designed so it never executes
-			#pragma unroll
-			for(int j=0; j<granularity; j++)
-				g_data[idx+k*big_stride] = sum;
-		}
+		if( sum==(T)-1 ) // Designed so it never executes
+			g_data[idx+k*big_stride] = sum;
 	}
 }
 

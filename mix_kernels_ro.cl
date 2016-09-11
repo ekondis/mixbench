@@ -33,10 +33,7 @@ void benchmark_func(class_T seed, global class_T *g_data){
 		for(int j=0; j<ELEMENTS_PER_THREAD; j+=2)
 			sum += tmps[j]*tmps[j+1];
 		// Dummy code
-		if( sum==(class_T)-1 ){ // Designed so it never executes
-			#pragma unroll
-			for(int j=0; j<ELEMENTS_PER_THREAD; j++)
-				g_data[idx+k*big_stride] = sum;
-		}
+		if( sum==(class_T)-1 ) // Designed so it never executes
+			g_data[idx+k*big_stride] = sum;
 	}
 }
