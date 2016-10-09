@@ -18,8 +18,22 @@
 
 #define ELEMENTS_PER_THREAD (8)
 
+template <class T>
+class functor_mad{
+	public:
+    T operator()(T a, T b, T c){
+		return a * b + c;
+	}
+};
+
+template<>
+double functor_mad<double>::operator()(double a, double b, double c){
+	return fma(a, b, c);
+}
+
 template <class T, int blockdim, unsigned int granularity, unsigned int compute_iterations>
 __global__ void benchmark_func(hipLaunchParm lp, T seed, T *g_data){
+	functor_mad<T> mad_op;
 	const unsigned int blockSize = blockdim;
 	const int stride = blockSize;
 	int idx = hipBlockIdx_x*blockSize*granularity + hipThreadIdx_x;
@@ -31,7 +45,7 @@ __global__ void benchmark_func(hipLaunchParm lp, T seed, T *g_data){
 		tmps[j] = g_data[idx+j*stride];
 		// Perform computations (compute intensive part)
 		for(int i=0; i<compute_iterations; i++){
-			tmps[j] = tmps[j]*tmps[j]+seed;//tmps[(j+granularity/2)%granularity];
+			tmps[j] = mad_op(tmps[j], tmps[j], seed);
 		}
 	}
 	// Multiply add reduction
