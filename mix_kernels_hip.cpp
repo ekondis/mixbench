@@ -24,9 +24,23 @@
 
 #define UNROLLED_MEMORY_ACCESSES (UNROLL_ITERATIONS/2)
 
+template <class T>
+class functor_mad{
+	public:
+    T operator()(T a, T b, T c){
+		return a * b + c;
+	}
+};
+
+template<>
+double functor_mad<double>::operator()(double a, double b, double c){
+	return fma(a, b, c);
+}
+
 template <class T, int blockdim, int memory_ratio>
 __global__ void
 benchmark_func(hipLaunchParm lp, T seed, volatile T *g_data){
+	functor_mad<T> mad_op;
 	const int index_stride = blockdim;
 	const int index_base = hipBlockIdx_x*blockdim*UNROLLED_MEMORY_ACCESSES + hipThreadIdx_x;
 	const int halfarraysize = hipGridDim_x*blockdim*UNROLLED_MEMORY_ACCESSES;
@@ -49,14 +63,14 @@ benchmark_func(hipLaunchParm lp, T seed, volatile T *g_data){
 	for(int j=0; j<COMP_ITERATIONS; j+=UNROLL_ITERATIONS){
 		#pragma unroll
 		for(int i=0; i<UNROLL_ITERATIONS-memory_ratio; i++){
-			r0 = r0 * r0 + r4;
-			r1 = r1 * r1 + r5;
-			r2 = r2 * r2 + r6;
-			r3 = r3 * r3 + r7;
-			r4 = r4 * r4 + r0;
-			r5 = r5 * r5 + r1;
-			r6 = r6 * r6 + r2;
-			r7 = r7 * r7 + r3;
+			r0 = mad_op(r0, r0, r4);
+			r1 = mad_op(r1, r1, r5);
+			r2 = mad_op(r2, r2, r6);
+			r3 = mad_op(r3, r3, r7);
+			r4 = mad_op(r4, r4, r0);
+			r5 = mad_op(r5, r5, r1);
+			r6 = mad_op(r6, r6, r2);
+			r7 = mad_op(r7, r7, r3);
 		}
 		bool do_write = true;
 		int reg_idx = 0;
