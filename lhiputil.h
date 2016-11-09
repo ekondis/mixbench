@@ -8,8 +8,8 @@
 #define _HIPUTIL_H_
 
 #include <stdio.h>
-#include <hip_runtime.h>
-#include <hip_runtime_api.h>
+#include <hip/hip_runtime.h>
+#include <hip/hip_runtime_api.h>
 
 #define CUDA_SAFE_CALL( call) {                                    \
     hipError_t err = call;                                                    \

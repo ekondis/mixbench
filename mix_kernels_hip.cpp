@@ -4,7 +4,7 @@
  * Contact: Elias Konstantinidis <ekondis@gmail.com>
  **/
 
-#include "hip_runtime.h"
+#include "hip/hip_runtime.h"
 #include <stdio.h>
 
 #ifdef __CUDACC__
