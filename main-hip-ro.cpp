@@ -6,7 +6,7 @@
 
 #include <stdio.h>
 #include <stdlib.h>
-#include <hip_runtime.h>
+#include <hip/hip_runtime.h>
 #include <string.h>
 #include "lhiputil.h"
 #include "mix_kernels_hip.h"
@@ -31,7 +31,7 @@ int main(int argc, char* argv[]) {
 	hipMemGetInfo(&freeCUDAMem, &totalCUDAMem);
 	printf("Total GPU memory %lu, free %lu\n", totalCUDAMem, freeCUDAMem);
 	printf("Buffer size:          %dMB\n", datasize/(1024*1024));
-	
+
 	double *c;
 	c = (double*)malloc(datasize);
 	init_vector(c, VECTOR_SIZE);
