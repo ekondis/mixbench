@@ -21,13 +21,13 @@
 template <class T>
 class functor_mad{
 	public:
-    T operator()(T a, T b, T c){
+	__device__ T operator()(T a, T b, T c){
 		return a * b + c;
 	}
 };
 
 template<>
-double functor_mad<double>::operator()(double a, double b, double c){
+__device__ double functor_mad<double>::operator()(double a, double b, double c){
 	return fma(a, b, c);
 }
 
