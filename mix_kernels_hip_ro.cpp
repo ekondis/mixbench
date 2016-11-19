@@ -27,9 +27,12 @@ class functor_mad{
 };
 
 template<>
-__device__ double functor_mad<double>::operator()(double a, double b, double c){
-	return fma(a, b, c);
-}
+class functor_mad<double>{
+	public:
+	__device__ double operator()(double a, double b, double c){
+		return fma(a, b, c);
+	}
+};
 
 template <class T, int blockdim, unsigned int granularity, unsigned int compute_iterations>
 __global__ void benchmark_func(hipLaunchParm lp, T seed, T *g_data){

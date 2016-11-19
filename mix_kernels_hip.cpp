@@ -33,9 +33,12 @@ class functor_mad{
 };
 
 template<>
-__device__ double functor_mad<double>::operator()(double a, double b, double c){
-	return fma(a, b, c);
-}
+class functor_mad<double>{
+	public:
+	__device__ double operator()(double a, double b, double c){
+		return fma(a, b, c);
+	}
+};
 
 template <class T, int blockdim, int memory_ratio>
 __global__ void
