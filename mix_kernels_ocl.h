@@ -6,7 +6,11 @@
 
 #pragma once
 
-#include <CL/opencl.h>
+#ifdef __APPLE__
+#	include <OpenCL/OpenCL.h>
+#else
+#	include <CL/opencl.h>
+#endif
 
 extern "C" void mixbenchGPU(cl_device_id, double*, long, bool, bool, size_t);
 

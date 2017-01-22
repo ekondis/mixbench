@@ -13,7 +13,12 @@ FLAGS_OCL = ${OPTFLAG} -I${OCL_INC_PATH} -Wall
 NVFLAGS = -O2 -I${CUDA_INC_PATH} --compiler-options -fno-strict-aliasing --ptxas-options=-v -Xptxas -dlcm=cg
 BITS = $(shell getconf LONG_BIT)
 LFLAGS_CUDA = -L${CUDA_LIB_PATH} -lm -lstdc++ -lcudart -lrt
-LFLAGS_OCL = -L${OCL_LIB_PATH} -lm -lstdc++ -lOpenCL -lrt
+OS := $(shell uname)
+ifeq ($(OS),Darwin)
+    LFLAGS_OCL = -lm -lstdc++ -framework OpenCL
+else
+    LFLAGS_OCL = -L${OCL_LIB_PATH} -lm -lstdc++ -lOpenCL -lrt
+endif
 NVCODE = -gencode=arch=compute_20,code=\"compute_20\"
 #NVCODE = -gencode=arch=compute_52,code=\"compute_52\" -gencode=arch=compute_30,code=\"compute_30\" -gencode=arch=compute_20,code=\"compute_20\"
 #NVCODE = -gencode=arch=compute_30,code=\"compute_30\"
@@ -63,14 +68,14 @@ mixbench-ocl-ro: main-ocl-ro.o mix_kernels_ocl_ro.o
 	${CC} -o $@ $^ ${LFLAGS_OCL}
 
 mixbench-hip-alt: main-hip.o mix_kernels_hip.o
-	${HIPCC} ${LFLAGS_HIP} -o $@ $^ 
+	${HIPCC} ${LFLAGS_HIP} -o $@ $^
 
 mixbench-hip-ro: main-hip-ro.o mix_kernels_hip-ro.o
-	${HIPCC} ${LFLAGS_HIP} -o $@ $^ 
+	${HIPCC} ${LFLAGS_HIP} -o $@ $^
 
 main-cuda.o: main-cuda.cpp mix_kernels_cuda.h lcutil.h version_info.h
 	${CC} -c ${FLAGS_CUDA} $< -o $@
- 
+
 main-cuda-ro.o: main-cuda.cpp mix_kernels_cuda.h lcutil.h version_info.h
 	${CC} -c ${FLAGS_CUDA} -DREADONLY $< -o $@
 
