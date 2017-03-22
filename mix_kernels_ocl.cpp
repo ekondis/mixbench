@@ -9,6 +9,7 @@
 #include <cstring>
 #define CL_USE_DEPRECATED_OPENCL_2_0_APIS
 #include "loclutil.h"
+#include "timestamp.h"
 
 #define COMP_ITERATIONS (8192)
 #define UNROLL_ITERATIONS (32)
@@ -124,7 +125,7 @@ void runbench_warmup(cl_command_queue queue, cl_kernel kernel, cl_mem cbuffer, l
 	OCL_SAFE_CALL( clEnqueueNDRangeKernel(queue, kernel, 1, NULL, dimReducedGrid, dimBlock, 0, NULL, NULL) );
 }
 
-void runbench(int memory_ratio, cl_command_queue queue, cl_kernel kernels[kdt_double+1][32+1], cl_mem cbuffer, long size, size_t workgroupsize){
+void runbench(int memory_ratio, cl_command_queue queue, cl_kernel kernels[kdt_double+1][32+1], cl_mem cbuffer, long size, size_t workgroupsize, bool use_os_timer){
 	if( memory_ratio>UNROLL_ITERATIONS ){
 		fprintf(stderr, "ERROR: memory_ratio exceeds UNROLL_ITERATIONS\n");
 		exit(1);
@@ -139,14 +140,16 @@ void runbench(int memory_ratio, cl_command_queue queue, cl_kernel kernels[kdt_do
 	const size_t dimGrid[1] = {(size_t)compute_grid_size};
 
 	cl_event event;
-	
+	timestamp ts_start;
+
 	const short seed_f = 1.0f;
 	cl_kernel kernel = kernels[kdt_float][memory_ratio];
 	OCL_SAFE_CALL( clSetKernelArg(kernel, 0, sizeof(cl_float), &seed_f) );
 	OCL_SAFE_CALL( clSetKernelArg(kernel, 1, sizeof(cl_mem), &cbuffer) );
+	ts_start = getTimestamp();
 	OCL_SAFE_CALL( clEnqueueNDRangeKernel(queue, kernel, 1, NULL, dimGrid, dimBlock, 0, NULL, &event) );
 	OCL_SAFE_CALL( clWaitForEvents(1, &event) );
-	double kernel_time_mad_sp = get_event_duration(event);
+	double kernel_time_mad_sp = use_os_timer ? getElapsedtime(ts_start) : get_event_duration(event);
 	OCL_SAFE_CALL( clReleaseEvent( event ) );
 
 	const short seed_d = 1.0;
@@ -155,9 +158,10 @@ void runbench(int memory_ratio, cl_command_queue queue, cl_kernel kernels[kdt_do
 	if( kernel ){
 		OCL_SAFE_CALL( clSetKernelArg(kernel, 0, sizeof(cl_double), &seed_d) );
 		OCL_SAFE_CALL( clSetKernelArg(kernel, 1, sizeof(cl_mem), &cbuffer) );
+		ts_start = getTimestamp();
 		OCL_SAFE_CALL( clEnqueueNDRangeKernel(queue, kernel, 1, NULL, dimGrid, dimBlock, 0, NULL, &event) );
 		OCL_SAFE_CALL( clWaitForEvents(1, &event) );
-		kernel_time_mad_dp = get_event_duration(event);
+		kernel_time_mad_dp = use_os_timer ? getElapsedtime(ts_start) : get_event_duration(event);
 		OCL_SAFE_CALL( clReleaseEvent( event ) );
 	} else 
 		kernel_time_mad_dp = 0.0;
@@ -166,9 +170,10 @@ void runbench(int memory_ratio, cl_command_queue queue, cl_kernel kernels[kdt_do
 	kernel = kernels[kdt_int][memory_ratio];
 	OCL_SAFE_CALL( clSetKernelArg(kernel, 0, sizeof(cl_int), &seed_i) );
 	OCL_SAFE_CALL( clSetKernelArg(kernel, 1, sizeof(cl_mem), &cbuffer) );
+	ts_start = getTimestamp();
 	OCL_SAFE_CALL( clEnqueueNDRangeKernel(queue, kernel, 1, NULL, dimGrid, dimBlock, 0, NULL, &event) );
 	OCL_SAFE_CALL( clWaitForEvents(1, &event) );
-	double kernel_time_mad_int = get_event_duration(event);
+	double kernel_time_mad_int = use_os_timer ? getElapsedtime(ts_start) : get_event_duration(event);
 	OCL_SAFE_CALL( clReleaseEvent( event ) );
 
 	const double memaccesses_ratio = (double)(memory_ratio)/UNROLL_ITERATIONS;
@@ -190,7 +195,7 @@ void runbench(int memory_ratio, cl_command_queue queue, cl_kernel kernels[kdt_do
 		(memaccesses_ratio*(double)memoryoperations*sizeof(int))/kernel_time_mad_int*1000./(1000.*1000.*1000.) );
 }
 
-extern "C" void mixbenchGPU(cl_device_id dev_id, double *c, long size, bool block_strided, bool host_allocated, size_t workgroupsize){
+extern "C" void mixbenchGPU(cl_device_id dev_id, double *c, long size, bool block_strided, bool host_allocated, bool use_os_timer, size_t workgroupsize){
 	const char *benchtype;
 	if(block_strided)
 		benchtype = "Workgroup";
@@ -199,6 +204,7 @@ extern "C" void mixbenchGPU(cl_device_id dev_id, double *c, long size, bool bloc
 	printf("Workitem stride:        %s\n", benchtype);
 	const char *buffer_allocation = host_allocated ? "Host allocated" : "Device allocated";
 	printf("Buffer allocation:      %s\n", buffer_allocation);
+	printf("Timer:                  %s\n", use_os_timer ? "OS based" : "CL event based");
 
 	// Set context properties
 	cl_platform_id p_id;
@@ -223,7 +229,7 @@ extern "C" void mixbenchGPU(cl_device_id dev_id, double *c, long size, bool bloc
 	OCL_SAFE_CALL(errno);
 	
 	// Create command queue
-	cl_command_queue cmd_queue = clCreateCommandQueue(context, dev_id, CL_QUEUE_PROFILING_ENABLE, &errno);
+	cl_command_queue cmd_queue = clCreateCommandQueue(context, dev_id, use_os_timer ? 0 : CL_QUEUE_PROFILING_ENABLE, &errno);
 	OCL_SAFE_CALL(errno);
 
 	// Set data on device memory
@@ -281,7 +287,7 @@ extern "C" void mixbenchGPU(cl_device_id dev_id, double *c, long size, bool bloc
 	printf("Compute iters, Flops/byte, ex.time,  GFLOPS, GB/sec, Flops/byte, ex.time,  GFLOPS, GB/sec, Iops/byte, ex.time,   GIOPS, GB/sec\n");
 
 	for(int i=32; i>=0; i--)
-		runbench(i, cmd_queue, kernels, c_buffer, size, workgroupsize);
+		runbench(i, cmd_queue, kernels, c_buffer, size, workgroupsize, use_os_timer);
 
 	printf("------------------------------------------------------------------------------------------------------------------------------\n");
 

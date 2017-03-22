@@ -25,6 +25,7 @@ typedef struct{
 	int device_index;
 	bool block_strided;
 	bool host_allocated;
+	bool use_os_timer;
 	int wg_size;
 	unsigned int vecwidth;
 #ifdef READONLY
@@ -44,6 +45,8 @@ bool argument_parsing(int argc, char* argv[], ArgParams *output){
 			output->block_strided = true;
 		} else if( (strcmp(argv[i], "-H")==0) || (strcmp(argv[i], "--host-alloc")==0) ) {
 			output->host_allocated = true;
+		} else if( (strcmp(argv[i], "-t")==0) || (strcmp(argv[i], "--use-os-timer")==0) ) {
+			output->use_os_timer = true;
 		} else {
 			unsigned long value = strtoul(argv[i], NULL, 10);
 			switch( arg_count ){
@@ -89,9 +92,9 @@ int main(int argc, char* argv[]) {
 #endif
 
 #ifdef READONLY
-	ArgParams args = {1, false, false, 256, DEF_VECTOR_SIZE/(1024*1024), 8, 4};
+	ArgParams args = {1, false, false, false, 256, DEF_VECTOR_SIZE/(1024*1024), 8, 4};
 #else
-	ArgParams args = {1, false, false, 256, DEF_VECTOR_SIZE/(1024*1024)};
+	ArgParams args = {1, false, false, false, 256, DEF_VECTOR_SIZE/(1024*1024)};
 #endif
 
 	if( !argument_parsing(argc, argv, &args) ){
@@ -104,6 +107,7 @@ int main(int argc, char* argv[]) {
 			"  -h or --help              Show this message\n"
 			"  -H or --host-alloc        Use host allocated buffer (CL_MEM_ALLOC_HOST_PTR)\n"
 			"  -w or --workgroup-stride  Workitem strides equal to the width of a workgroup length (default: NDRange length)\n"
+			"  -t or --use-os-timer      Use standard OS timer instead of OpenCL profiling timer\n"
 			"\n");
 
 		GetDeviceID(0, stdout);
@@ -139,9 +143,9 @@ int main(int argc, char* argv[]) {
 	c = (double*)malloc(datasize);
 
 #ifdef READONLY
-	mixbenchGPU(dev_id, c, VEC_WIDTH, args.block_strided, args.host_allocated, args.wg_size, args.elements_per_wi, args.fusion_degree);
+	mixbenchGPU(dev_id, c, VEC_WIDTH, args.block_strided, args.host_allocated, args.use_os_timer, args.wg_size, args.elements_per_wi, args.fusion_degree);
 #else
-	mixbenchGPU(dev_id, c, VEC_WIDTH, args.block_strided, args.host_allocated, args.wg_size);
+	mixbenchGPU(dev_id, c, VEC_WIDTH, args.block_strided, args.host_allocated, args.use_os_timer, args.wg_size);
 #endif
 
 	free(c);
