@@ -30,7 +30,7 @@ ifdef HIP_PATH
         HIPCC_FLAGS=${NVCODE} ${NVFLAGS}
         LFLAGS_HIP =${LFLAGS_CUDA}
     else
-        HIPCC_FLAGS=${OPTFLAG} -I${HIP_PATH}/hip/include
+        HIPCC_FLAGS=${OPTFLAG} -I${HIP_PATH}/hip/include -DGENERIC_GRID_LAUNCH=0
         LFLAGS_HIP =${OPTFLAG}
     endif
 endif
