@@ -117,7 +117,7 @@ If you use this benchmark tool for a research work please provide citation to an
 Elias Konstantinidis, Yiannis Cotronis,
 "A quantitative roofline model for GPU kernel performance estimation using micro-benchmarks and hardware metric profiling",
 Journal of Parallel and Distributed Computing, Volume 107, September 2017, Pages 37-56, ISSN 0743-7315,
-https://doi.org/10.1016/j.jpdc.2017.04.002. 
+https://doi.org/10.1016/j.jpdc.2017.04.002.  
 URL: http://www.sciencedirect.com/science/article/pii/S0743731517301247
 
 Konstantinidis, E., Cotronis, Y.,
