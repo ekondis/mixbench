@@ -6,10 +6,37 @@
 
 #include <stdio.h>
 #include <math_constants.h>
+#include <cuda_fp16.h>
+#include <stdint.h>
+#include <math.h>
 #include "lcutil.h"
 
 #define ELEMENTS_PER_THREAD (8)
 #define FUSION_DEGREE (4)
+
+template<class T>
+inline __device__ T conv_int(const int i){ return static_cast<T>(i); }
+
+#if __CUDA_ARCH__ >= 530
+
+inline __device__ half2 operator*(const half2 &a, const half2 &b) { return __hmul2(a, b); }
+inline __device__ half2 operator+(const half2 &a, const half2 &b) { return __hadd2(a, b); }
+inline __device__ half2& operator+=(half2& a, const half2& b){ return a = __hadd2(a, b); }
+inline __device__ bool operator==(const half2& a, const half2& b){ return __hbeq2(a, b); }
+template<>
+inline __device__ half2 conv_int(const int i){ return __half2half2( __int2half_rd(i) ); }
+
+#else
+
+// Dummy definitions as workaround in case fp16 is not supported
+inline __device__ half2 operator*(const half2 &a, const half2 &b) { return a; }
+inline __device__ half2 operator+(const half2 &a, const half2 &b) { return a; }
+inline __device__ half2& operator+=(half2& a, const half2& b){ return a = b; }
+inline __device__ bool operator==(const half2& a, const half2& b){ return false; }
+template<>
+inline __device__ half2 conv_int(const int i){ return half2(); }
+
+#endif
 
 template <class T, int blockdim, unsigned int granularity, unsigned int fusion_degree, unsigned int compute_iterations>
 __global__ void benchmark_func(T seed, T *g_data){
@@ -30,12 +57,12 @@ __global__ void benchmark_func(T seed, T *g_data){
 			}
 		}
 		// Multiply add reduction
-		T sum = (T)0;
+		T sum = conv_int<T>(0);
 		#pragma unroll
 		for(int j=0; j<granularity; j+=2)
 			sum += tmps[j]*tmps[j+1];
 		// Dummy code
-		if( sum==(T)-1 ) // Designed so it never executes
+		if( sum==conv_int<T>(-1) ) // Designed so it never executes
 			g_data[idx+k*big_stride] = sum;
 	}
 }
@@ -73,7 +100,7 @@ void runbench_warmup(double *cd, long size){
 int out_config = 1;
 
 template<unsigned int compute_iterations>
-void runbench(double *cd, long size){
+void runbench(double *cd, long size, bool doHalfs){
 	const long compute_grid_size = size/ELEMENTS_PER_THREAD/FUSION_DEGREE;
 	const int BLOCK_SIZE = 256;
 	const int TOTAL_BLOCKS = compute_grid_size/BLOCK_SIZE;
@@ -92,11 +119,20 @@ void runbench(double *cd, long size){
 	benchmark_func< double, BLOCK_SIZE, ELEMENTS_PER_THREAD, FUSION_DEGREE, compute_iterations ><<< dimGrid, dimBlock >>>(1.0, cd);
 	float kernel_time_mad_dp = finalizeEvents(start, stop);
 
+	float kernel_time_mad_hp = 0.f;
+	if( doHalfs ){
+		initializeEvents(&start, &stop);
+		half2 h_ones;
+		*((int32_t*)&h_ones) = 15360 + (15360 << 16); // 1.0 as half
+		benchmark_func< half2, BLOCK_SIZE, ELEMENTS_PER_THREAD, FUSION_DEGREE, compute_iterations ><<< dimGrid, dimBlock >>>(h_ones, (half2*)cd);
+		kernel_time_mad_hp = finalizeEvents(start, stop);
+	}
+
 	initializeEvents(&start, &stop);
 	benchmark_func< int, BLOCK_SIZE, ELEMENTS_PER_THREAD, FUSION_DEGREE, compute_iterations ><<< dimGrid, dimBlock >>>(1, (int*)cd);
 	float kernel_time_mad_int = finalizeEvents(start, stop);
 
-	printf("         %4d,   %8.3f,%8.2f,%8.2f,%7.2f,   %8.3f,%8.2f,%8.2f,%7.2f,  %8.3f,%8.2f,%8.2f,%7.2f\n",
+	printf("         %4d,   %8.3f,%8.2f,%8.2f,%7.2f,   %8.3f,%8.2f,%8.2f,%7.2f,   %8.3f,%8.2f,%8.2f,%7.2f,  %8.3f,%8.2f,%8.2f,%7.2f\n",
 		compute_iterations,
 		((double)computations)/((double)memoryoperations*sizeof(float)),
 		kernel_time_mad_sp,
@@ -106,6 +142,10 @@ void runbench(double *cd, long size){
 		kernel_time_mad_dp,
 		((double)computations)/kernel_time_mad_dp*1000./(double)(1000*1000*1000),
 		((double)memoryoperations*sizeof(double))/kernel_time_mad_dp*1000./(1000.*1000.*1000.),
+		((double)2*computations)/((double)memoryoperations*sizeof(half2)),
+		kernel_time_mad_hp,
+		((double)2*computations)/kernel_time_mad_hp*1000./(double)(1000*1000*1000),
+		((double)memoryoperations*sizeof(half2))/kernel_time_mad_hp*1000./(1000.*1000.*1000.),
 		((double)computations)/((double)memoryoperations*sizeof(int)),
 		kernel_time_mad_int,
 		((double)computations)/kernel_time_mad_int*1000./(double)(1000*1000*1000),
@@ -119,6 +159,9 @@ extern "C" void mixbenchGPU(double *c, long size){
 	printf("Elements per thread:  %d\n", ELEMENTS_PER_THREAD);
 	printf("Thread fusion degree: %d\n", FUSION_DEGREE);
 	double *cd;
+	bool doHalfs = IsFP16Supported();
+	if( !doHalfs )
+		printf("Warning:              Half precision computations are not supported\n");
 
 	CUDA_SAFE_CALL( cudaMalloc((void**)&cd, size*sizeof(double)) );
 
@@ -128,47 +171,47 @@ extern "C" void mixbenchGPU(double *c, long size){
 	// Synchronize in order to wait for memory operations to finish
 	CUDA_SAFE_CALL( cudaThreadSynchronize() );
 
-	printf("---------------------------------------------------------- CSV data ----------------------------------------------------------\n");
-	printf("Experiment ID, Single Precision ops,,,,              Double precision ops,,,,              Integer operations,,, \n");
-	printf("Compute iters, Flops/byte, ex.time,  GFLOPS, GB/sec, Flops/byte, ex.time,  GFLOPS, GB/sec, Iops/byte, ex.time,   GIOPS, GB/sec\n");
+	printf("----------------------------------------------------------------------------- CSV data -----------------------------------------------------------------------------\n");
+	printf("Experiment ID, Single Precision ops,,,,              Double precision ops,,,,              Half precision ops,,,,                Integer operations,,, \n");
+	printf("Compute iters, Flops/byte, ex.time,  GFLOPS, GB/sec, Flops/byte, ex.time,  GFLOPS, GB/sec, Flops/byte, ex.time,  GFLOPS, GB/sec, Iops/byte, ex.time,   GIOPS, GB/sec\n");
 
 	runbench_warmup(cd, size);
 
-	runbench<0>(cd, size);
-	runbench<1>(cd, size);
-	runbench<2>(cd, size);
-	runbench<3>(cd, size);
-	runbench<4>(cd, size);
-	runbench<5>(cd, size);
-	runbench<6>(cd, size);
-	runbench<7>(cd, size);
-	runbench<8>(cd, size);
-	runbench<9>(cd, size);
-	runbench<10>(cd, size);
-	runbench<11>(cd, size);
-	runbench<12>(cd, size);
-	runbench<13>(cd, size);
-	runbench<14>(cd, size);
-	runbench<15>(cd, size);
-	runbench<16>(cd, size);
-	runbench<17>(cd, size);
-	runbench<18>(cd, size);
-	runbench<20>(cd, size);
-	runbench<22>(cd, size);
-	runbench<24>(cd, size);
-	runbench<28>(cd, size);
-	runbench<32>(cd, size);
-	runbench<40>(cd, size);
-	runbench<48>(cd, size);
-	runbench<56>(cd, size);
-	runbench<64>(cd, size);
-	runbench<80>(cd, size);
-	runbench<96>(cd, size);
-	runbench<128>(cd, size);
-	runbench<192>(cd, size);
-	runbench<256>(cd, size);
+	runbench<0>(cd, size, doHalfs);
+	runbench<1>(cd, size, doHalfs);
+	runbench<2>(cd, size, doHalfs);
+	runbench<3>(cd, size, doHalfs);
+	runbench<4>(cd, size, doHalfs);
+	runbench<5>(cd, size, doHalfs);
+	runbench<6>(cd, size, doHalfs);
+	runbench<7>(cd, size, doHalfs);
+	runbench<8>(cd, size, doHalfs);
+	runbench<9>(cd, size, doHalfs);
+	runbench<10>(cd, size, doHalfs);
+	runbench<11>(cd, size, doHalfs);
+	runbench<12>(cd, size, doHalfs);
+	runbench<13>(cd, size, doHalfs);
+	runbench<14>(cd, size, doHalfs);
+	runbench<15>(cd, size, doHalfs);
+	runbench<16>(cd, size, doHalfs);
+	runbench<17>(cd, size, doHalfs);
+	runbench<18>(cd, size, doHalfs);
+	runbench<20>(cd, size, doHalfs);
+	runbench<22>(cd, size, doHalfs);
+	runbench<24>(cd, size, doHalfs);
+	runbench<28>(cd, size, doHalfs);
+	runbench<32>(cd, size, doHalfs);
+	runbench<40>(cd, size, doHalfs);
+	runbench<48>(cd, size, doHalfs);
+	runbench<56>(cd, size, doHalfs);
+	runbench<64>(cd, size, doHalfs);
+	runbench<80>(cd, size, doHalfs);
+	runbench<96>(cd, size, doHalfs);
+	runbench<128>(cd, size, doHalfs);
+	runbench<192>(cd, size, doHalfs);
+	runbench<256>(cd, size, doHalfs);
 
-	printf("------------------------------------------------------------------------------------------------------------------------------\n");
+	printf("--------------------------------------------------------------------------------------------------------------------------------------------------------------------\n");
 
 	// Copy results back to host memory
 	CUDA_SAFE_CALL( cudaMemcpy(c, cd, size*sizeof(double), cudaMemcpyDeviceToHost) );

@@ -38,6 +38,14 @@ static inline int _ConvertSMVer2Cores(int major, int minor){
 	}
 }
 
+static inline bool IsFP16Supported(void){
+	cudaDeviceProp deviceProp;
+	int current_device;
+	CUDA_SAFE_CALL( cudaGetDevice(&current_device) );
+	CUDA_SAFE_CALL( cudaGetDeviceProperties(&deviceProp, current_device) );
+	return deviceProp.major>5 || (deviceProp.major == 5 && deviceProp.minor == 3);
+}
+
 static inline void GetDevicePeakInfo(double *aGIPS, double *aGBPS, cudaDeviceProp *aDeviceProp = NULL){
 	cudaDeviceProp deviceProp;
 	int current_device;
