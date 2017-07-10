@@ -4,7 +4,8 @@
  * Contact: Elias Konstantinidis <ekondis@gmail.com>
  **/
 
-#include "hip/hip_runtime.h"
+#include <hip/hip_runtime.h>
+#include <hip/hip_fp16.h>
 #include <stdio.h>
 #ifdef __CUDACC__
 #include <math_constants.h>
@@ -14,32 +15,31 @@
 #define GPU_INF(_T)   std::numeric_limits<_T>::infinity()
 #endif
 
+typedef __half2 half2;
+
 #include "lhiputil.h"
 
 #define ELEMENTS_PER_THREAD (8)
 
-template <class T>
-class functor_mad{
-	public:
-	__device__ T operator()(T a, T b, T c){
-		return a * b + c;
-	}
-};
+template<class T>
+inline __device__ T mad(const T& a, const T& b, const T& c){ return a*b+c; }
 
 template<>
-class functor_mad<double>{
-	public:
-	__device__ double operator()(double a, double b, double c){
-		return fma(a, b, c);
-	}
-};
+inline __device__ double mad(const double& a, const double& b, const double& c){ return fma(a, b, c); }
 
-template <class T, int blockdim, unsigned int granularity, unsigned int compute_iterations>
+template<>
+inline __device__ half2 mad(const half2& a, const half2& b, const half2& c){ return __hfma2(a, b, c); }
+
+template<class T>
+inline __device__ bool is_equal(const T& a, const T& b){ return a == b; }
+
+template<>
+inline __device__ bool is_equal(const half2& a, const half2& b){ return __hbeq2(a, b); }
+
+template <class T, int blockSize, unsigned int granularity, unsigned int compute_iterations>
 __global__ void benchmark_func(hipLaunchParm lp, T seed, T *g_data){
-	functor_mad<T> mad_op;
-	const unsigned int blockSize = blockdim;
 	const int stride = blockSize;
-	int idx = hipBlockIdx_x*blockSize*granularity + hipThreadIdx_x;
+	const int idx = hipBlockIdx_x*blockSize*granularity + hipThreadIdx_x;
 
 	T tmps[granularity];
 	#pragma unroll
@@ -48,16 +48,16 @@ __global__ void benchmark_func(hipLaunchParm lp, T seed, T *g_data){
 		tmps[j] = g_data[idx+j*stride];
 		// Perform computations (compute intensive part)
 		for(int i=0; i<compute_iterations; i++){
-			tmps[j] = mad_op(tmps[j], tmps[j], seed);
+			tmps[j] = mad<T>(tmps[j], tmps[j], seed);
 		}
 	}
 	// Multiply add reduction
-	T sum = (T)0;
+	T sum = static_cast<T>(0);
 	#pragma unroll
 	for(int j=0; j<granularity; j+=2)
-		sum += tmps[j]*tmps[j+1];
+		sum = mad<T>(tmps[j], tmps[j+1], sum);
 	// Dummy code
-	if( sum==(T)-1 ) // Designed so it never executes
+	if( is_equal(sum, static_cast<T>(-1)) ) // Designed so it never executes
 		g_data[idx] = sum;
 }
 
@@ -112,10 +112,15 @@ void runbench(double *cd, long size){
 	float kernel_time_mad_dp = finalizeEvents(start, stop);
 
 	initializeEvents(&start, &stop);
+	half2 h_ones(1.0f);
+	hipLaunchKernel(HIP_KERNEL_NAME(benchmark_func< half2, BLOCK_SIZE, ELEMENTS_PER_THREAD, compute_iterations >), dim3(dimGrid), dim3(dimBlock ), 0, 0, h_ones, (half2*)cd);
+	float kernel_time_mad_hp = finalizeEvents(start, stop);
+
+	initializeEvents(&start, &stop);
 	hipLaunchKernel(HIP_KERNEL_NAME(benchmark_func< int, BLOCK_SIZE, ELEMENTS_PER_THREAD, compute_iterations >), dim3(dimGrid), dim3(dimBlock ), 0, 0, 1, (int*)cd);
 	float kernel_time_mad_int = finalizeEvents(start, stop);
 
-	printf("         %4d,   %8.3f,%8.2f,%8.2f,%7.2f,   %8.3f,%8.2f,%8.2f,%7.2f,  %8.3f,%8.2f,%8.2f,%7.2f\n",
+	printf("         %4d,   %8.3f,%8.2f,%8.2f,%7.2f,   %8.3f,%8.2f,%8.2f,%7.2f,   %8.3f,%8.2f,%8.2f,%7.2f,  %8.3f,%8.2f,%8.2f,%7.2f\n",
 		compute_iterations,
 		((double)computations)/((double)memoryoperations*sizeof(float)),
 		kernel_time_mad_sp,
@@ -125,6 +130,10 @@ void runbench(double *cd, long size){
 		kernel_time_mad_dp,
 		((double)computations)/kernel_time_mad_dp*1000./(double)(1000*1000*1000),
 		((double)memoryoperations*sizeof(double))/kernel_time_mad_dp*1000./(1000.*1000.*1000.),
+		((double)2*computations)/((double)memoryoperations*sizeof(half2)),
+		kernel_time_mad_hp,
+		((double)2*computations)/kernel_time_mad_hp*1000./(double)(1000*1000*1000),
+		((double)memoryoperations*sizeof(half2))/kernel_time_mad_hp*1000./(1000.*1000.*1000.),
 		((double)computations)/((double)memoryoperations*sizeof(int)),
 		kernel_time_mad_int,
 		((double)computations)/kernel_time_mad_int*1000./(double)(1000*1000*1000),
@@ -147,9 +156,9 @@ extern "C" void mixbenchGPU(double *c, long size){
 	// Synchronize in order to wait for memory operations to finish
 	CUDA_SAFE_CALL( hipDeviceSynchronize() );
 
-	printf("---------------------------------------------------------- CSV data ----------------------------------------------------------\n");
-	printf("Experiment ID, Single Precision ops,,,,              Double precision ops,,,,              Integer operations,,, \n");
-	printf("Compute iters, Flops/byte, ex.time,  GFLOPS, GB/sec, Flops/byte, ex.time,  GFLOPS, GB/sec, Iops/byte, ex.time,   GIOPS, GB/sec\n");
+	printf("----------------------------------------------------------------------------- CSV data -----------------------------------------------------------------------------\n");
+	printf("Experiment ID, Single Precision ops,,,,              Double precision ops,,,,              Half precision ops,,,,                Integer operations,,, \n");
+	printf("Compute iters, Flops/byte, ex.time,  GFLOPS, GB/sec, Flops/byte, ex.time,  GFLOPS, GB/sec, Flops/byte, ex.time,  GFLOPS, GB/sec, Iops/byte, ex.time,   GIOPS, GB/sec\n");
 
 	runbench_warmup(cd, size);
 
@@ -187,7 +196,7 @@ extern "C" void mixbenchGPU(double *c, long size){
 	runbench<256>(cd, size);
 	runbench<512>(cd, size);
 
-	printf("------------------------------------------------------------------------------------------------------------------------------\n");
+	printf("--------------------------------------------------------------------------------------------------------------------------------------------------------------------\n");
 
 	// Copy results back to host memory
 	CUDA_SAFE_CALL( hipMemcpy(c, cd, size*sizeof(double), hipMemcpyDeviceToHost) );
