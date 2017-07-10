@@ -134,7 +134,7 @@ void runbench(const int compute_iterations[], unsigned int krn_idx, cl_command_q
 	cl_event event;
 	timestamp ts_start;
 	
-	const short seed_f = 1.0f;
+	const cl_float seed_f = 1.0f;
 	cl_kernel kernel = kernels[kdt_float][krn_idx];
 	OCL_SAFE_CALL( clSetKernelArg(kernel, 0, sizeof(cl_float), &seed_f) );
 	OCL_SAFE_CALL( clSetKernelArg(kernel, 1, sizeof(cl_mem), &cbuffer) );
@@ -144,7 +144,7 @@ void runbench(const int compute_iterations[], unsigned int krn_idx, cl_command_q
 	double kernel_time_mad_sp = use_os_timer ? getElapsedtime(ts_start) : get_event_duration(event);
 	OCL_SAFE_CALL( clReleaseEvent( event ) );
 
-	const short seed_d = 1.0;
+	const cl_double seed_d = 1.0;
 	double kernel_time_mad_dp;
 	kernel = kernels[kdt_double][krn_idx];
 	if( kernel ){
@@ -158,7 +158,7 @@ void runbench(const int compute_iterations[], unsigned int krn_idx, cl_command_q
 	} else 
 		kernel_time_mad_dp = 0.0;
 
-	const short seed_i = 1.0;
+	const cl_int seed_i = 1.0;
 	kernel = kernels[kdt_int][krn_idx];
 	OCL_SAFE_CALL( clSetKernelArg(kernel, 0, sizeof(cl_int), &seed_i) );
 	OCL_SAFE_CALL( clSetKernelArg(kernel, 1, sizeof(cl_mem), &cbuffer) );
