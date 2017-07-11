@@ -1,7 +1,17 @@
 #ifdef ENABLE_DP
 	#pragma OPENCL EXTENSION cl_khr_fp64 : enable
 #endif
+#ifdef ENABLE_HP
+	#pragma OPENCL EXTENSION cl_khr_fp16 : enable
+#endif
 
+bool is_equal(const class_T a, const class_T b){
+#ifdef ENABLE_HP
+	return a.x==b.x && a.y==b.y;
+#else
+	return a==b;
+#endif
+}
 
 __kernel __attribute__((reqd_work_group_size(blockdim, 1, 1)))
 void benchmark_func(class_T seed, global class_T *g_data){
@@ -33,7 +43,7 @@ void benchmark_func(class_T seed, global class_T *g_data){
 		for(int j=0; j<ELEMENTS_PER_THREAD; j+=2)
 			sum += tmps[j]*tmps[j+1];
 		// Dummy code
-		if( sum==(class_T)-1 ) // Designed so it never executes
+		if( is_equal(sum, (class_T)-1) ) // Designed so it never executes
 			g_data[idx+k*big_stride] = sum;
 	}
 }
