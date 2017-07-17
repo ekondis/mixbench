@@ -6,6 +6,9 @@
 
 #include <stdio.h>
 #include <math_constants.h>
+#include <cuda_fp16.h>
+#include <stdint.h>
+#include <math.h>
 #include "lcutil.h"
 
 #define COMP_ITERATIONS (8192)
@@ -13,6 +16,57 @@
 #define REGBLOCK_SIZE (8)
 
 #define UNROLLED_MEMORY_ACCESSES (UNROLL_ITERATIONS/2)
+
+template<class T>
+inline __device__ T conv_int(const int i){ return static_cast<T>(i); }
+template<class T>
+inline __device__ T conv_double(const double v){ return static_cast<T>(v); }
+
+template<class T>
+inline __device__ void volatile_set(volatile T &p, T v){ p = v; }
+template<class T>
+inline __device__ T volatile_get(volatile T &p){ return p; }
+
+#if __CUDA_ARCH__ >= 530
+
+inline __device__ half2 operator*(const half2 &a, const half2 &b) { return __hmul2(a, b); }
+inline __device__ half2 operator+(const half2 &a, const half2 &b) { return __hadd2(a, b); }
+inline __device__ half2& operator+=(half2& a, const half2& b){ return a = __hadd2(a, b); }
+inline __device__ bool operator==(const half2& a, const half2& b){ return __hbeq2(a, b); }
+template<>
+inline __device__ half2 conv_int(const int i){ return __half2half2( __int2half_rd(i) ); }
+template<>
+inline __device__ half2 conv_double(const double v){ return __float2half2_rn(static_cast<float>(v)); }
+template<>
+inline __device__ void volatile_set(volatile half2 &p, half2 v){
+	volatile float& pf = reinterpret_cast<volatile float&>(p);
+	float &vf = reinterpret_cast<float&>(v);
+	pf = vf;
+}
+template<>
+inline __device__ half2 volatile_get(volatile half2 &p){
+	volatile float& pf = reinterpret_cast<volatile float&>(p);
+	float vf = pf;
+	return reinterpret_cast<half2&>(vf);
+}
+
+#else
+
+// Dummy definitions as workaround in case fp16 is not supported
+inline __device__ half2 operator*(const half2 &a, const half2 &b) { return a; }
+inline __device__ half2 operator+(const half2 &a, const half2 &b) { return a; }
+inline __device__ half2& operator+=(half2& a, const half2& b){ return a = b; }
+inline __device__ bool operator==(const half2& a, const half2& b){ return false; }
+template<>
+inline __device__ half2 conv_int(const int i){ return half2(); }
+template<>
+inline __device__ half2 conv_double(const double v){ return half2(); }
+template<>
+inline __device__ void volatile_set(volatile half2 &p, half2 v){ }
+template<>
+inline __device__ half2 volatile_get(volatile half2 &p){ return half2(); }
+
+#endif
 
 template <class T, int blockdim, int memory_ratio>
 __global__ void benchmark_func(T seed, volatile T *g_data){
@@ -24,17 +78,16 @@ __global__ void benchmark_func(T seed, volatile T *g_data){
 	const int array_index_bound = index_base+offset_slips*index_stride;
 	const int initial_index_range = memory_ratio>0 ? UNROLLED_MEMORY_ACCESSES % ((memory_ratio+1)/2) : 1;
 	int initial_index_factor = 0;
-	volatile T *data = g_data;
 
 	int array_index = index_base;
-	T r0 = seed + blockIdx.x * blockdim + threadIdx.x,
-	  r1 = r0+(T)(2),
-	  r2 = r0+(T)(3),
-	  r3 = r0+(T)(5),
-	  r4 = r0+(T)(7),
-	  r5 = r0+(T)(11),
-	  r6 = r0+(T)(13),
-	  r7 = r0+(T)(17);
+	T r0 = seed + conv_int<T>(blockIdx.x * blockdim + threadIdx.x),
+	  r1 = r0+conv_int<T>(2),
+	  r2 = r0+conv_int<T>(3),
+	  r3 = r0+conv_int<T>(5),
+	  r4 = r0+conv_int<T>(7),
+	  r5 = r0+conv_int<T>(11),
+	  r6 = r0+conv_int<T>(13),
+	  r7 = r0+conv_int<T>(17);
 
 	for(int j=0; j<COMP_ITERATIONS; j+=UNROLL_ITERATIONS){
 		#pragma unroll
@@ -55,9 +108,9 @@ __global__ void benchmark_func(T seed, volatile T *g_data){
 			// Each iteration maps to one memory operation
 			T& r = reg_idx==0 ? r0 : (reg_idx==1 ? r1 : (reg_idx==2 ? r2 : (reg_idx==3 ? r3 : (reg_idx==4 ? r4 : (reg_idx==5 ? r5 : (reg_idx==6 ? r6 : r7))))));
 			if( do_write )
-				data[ array_index+halfarraysize ] = r;
+				volatile_set(g_data[ array_index+halfarraysize ], r);
 			else {
-				r = data[ array_index ];
+				r = volatile_get(g_data[ array_index ]);
 				if( ++reg_idx>=REGBLOCK_SIZE )
 					reg_idx = 0;
 				array_index += index_stride;
@@ -70,9 +123,9 @@ __global__ void benchmark_func(T seed, volatile T *g_data){
 			array_index = index_base + initial_index_factor*index_stride;
 		}
 	}
-	if( (r0==(T)CUDART_INF) && (r1==(T)CUDART_INF) && (r2==(T)CUDART_INF) && (r3==(T)CUDART_INF) &&
-	    (r4==(T)CUDART_INF) && (r5==(T)CUDART_INF) && (r6==(T)CUDART_INF) && (r7==(T)CUDART_INF) ){ // extremely unlikely to happen
-		g_data[0] = r0+r1+r2+r3+r4+r5+r6+r7;
+	if( (r0==conv_double<T>(CUDART_INF)) && (r1==conv_double<T>(CUDART_INF)) && (r2==conv_double<T>(CUDART_INF)) && (r3==conv_double<T>(CUDART_INF)) &&
+	    (r4==conv_double<T>(CUDART_INF)) && (r5==conv_double<T>(CUDART_INF)) && (r6==conv_double<T>(CUDART_INF)) && (r7==conv_double<T>(CUDART_INF)) ){ // extremely unlikely to happen
+		volatile_set(g_data[0], static_cast<T>(r0+r1+r2+r3+r4+r5+r6+r7));
 	}
 
 }
@@ -108,7 +161,7 @@ void runbench_warmup(double *cd, long size){
 }
 
 template<int memory_ratio>
-void runbench(double *cd, long size){
+void runbench(double *cd, long size, bool doHalfs){
 	if( memory_ratio>UNROLL_ITERATIONS ){
 		fprintf(stderr, "ERROR: memory_ratio exceeds UNROLL_ITERATIONS\n");
 		exit(1);
@@ -132,6 +185,15 @@ void runbench(double *cd, long size){
 	benchmark_func< double, BLOCK_SIZE, memory_ratio ><<< dimGrid, dimBlock >>>(1.0, cd);
 	float kernel_time_mad_dp = finalizeEvents(start, stop);
 
+	float kernel_time_mad_hp = 0.f;
+	if( doHalfs ){
+		initializeEvents(&start, &stop);
+		half2 h_ones;
+		*((int32_t*)&h_ones) = 15360 + (15360 << 16); // 1.0 as half
+		benchmark_func< half2, BLOCK_SIZE, memory_ratio ><<< dimGrid, dimBlock >>>(h_ones, (half2*)cd);
+		kernel_time_mad_hp = finalizeEvents(start, stop);
+	}
+
 	initializeEvents(&start, &stop);
 	benchmark_func< int, BLOCK_SIZE, memory_ratio ><<< dimGrid, dimBlock >>>(1, (int*)cd);
 	float kernel_time_mad_int = finalizeEvents(start, stop);
@@ -139,7 +201,7 @@ void runbench(double *cd, long size){
 	const double memaccesses_ratio = (double)(memory_ratio)/UNROLL_ITERATIONS;
 	const double computations_ratio = 1.0-memaccesses_ratio;
 
-	printf("         %4d,   %8.3f,%8.2f,%8.2f,%7.2f,   %8.3f,%8.2f,%8.2f,%7.2f,  %8.3f,%8.2f,%8.2f,%7.2f\n",
+	printf("         %4d,   %8.3f,%8.2f,%8.2f,%7.2f,   %8.3f,%8.2f,%8.2f,%7.2f,   %8.3f,%8.2f,%8.2f,%7.2f,  %8.3f,%8.2f,%8.2f,%7.2f\n",
 		UNROLL_ITERATIONS-memory_ratio,
 		(computations_ratio*(double)computations)/(memaccesses_ratio*(double)memoryoperations*sizeof(float)),
 		kernel_time_mad_sp,
@@ -149,6 +211,10 @@ void runbench(double *cd, long size){
 		kernel_time_mad_dp,
 		(computations_ratio*(double)computations)/kernel_time_mad_dp*1000./(double)(1000*1000*1000),
 		(memaccesses_ratio*(double)memoryoperations*sizeof(double))/kernel_time_mad_dp*1000./(1000.*1000.*1000.),
+		(computations_ratio*(double)2*computations)/(memaccesses_ratio*(double)memoryoperations*sizeof(half2)),
+		kernel_time_mad_hp,
+		(computations_ratio*(double)2*computations)/kernel_time_mad_hp*1000./(double)(1000*1000*1000),
+		(memaccesses_ratio*(double)memoryoperations*sizeof(half2))/kernel_time_mad_hp*1000./(1000.*1000.*1000.),
 		(computations_ratio*(double)computations)/(memaccesses_ratio*(double)memoryoperations*sizeof(int)),
 		kernel_time_mad_int,
 		(computations_ratio*(double)computations)/kernel_time_mad_int*1000./(double)(1000*1000*1000),
@@ -160,6 +226,10 @@ extern "C" void mixbenchGPU(double *c, long size){
 
 	printf("Trade-off type:       %s\n", benchtype);
 	double *cd;
+	bool doHalfs = IsFP16Supported();
+	if( !doHalfs )
+		printf("Warning:              Half precision computations are not supported\n");
+
 
 	CUDA_SAFE_CALL( cudaMalloc((void**)&cd, size*sizeof(double)) );
 
@@ -169,47 +239,47 @@ extern "C" void mixbenchGPU(double *c, long size){
 	// Synchronize in order to wait for memory operations to finish
 	CUDA_SAFE_CALL( cudaThreadSynchronize() );
 
-	printf("---------------------------------------------------------- CSV data ----------------------------------------------------------\n");
-	printf("Experiment ID, Single Precision ops,,,,              Double precision ops,,,,              Integer operations,,, \n");
-	printf("Compute iters, Flops/byte, ex.time,  GFLOPS, GB/sec, Flops/byte, ex.time,  GFLOPS, GB/sec, Iops/byte, ex.time,   GIOPS, GB/sec\n");
+	printf("----------------------------------------------------------------------------- CSV data -----------------------------------------------------------------------------\n");
+	printf("Experiment ID, Single Precision ops,,,,              Double precision ops,,,,              Half precision ops,,,,                Integer operations,,, \n");
+	printf("Compute iters, Flops/byte, ex.time,  GFLOPS, GB/sec, Flops/byte, ex.time,  GFLOPS, GB/sec, Flops/byte, ex.time,  GFLOPS, GB/sec, Iops/byte, ex.time,   GIOPS, GB/sec\n");
 
 	runbench_warmup(cd, size);
 
-	runbench<32>(cd, size);
-	runbench<31>(cd, size);
-	runbench<30>(cd, size);
-	runbench<29>(cd, size);
-	runbench<28>(cd, size);
-	runbench<27>(cd, size);
-	runbench<26>(cd, size);
-	runbench<25>(cd, size);
-	runbench<24>(cd, size);
-	runbench<23>(cd, size);
-	runbench<22>(cd, size);
-	runbench<21>(cd, size);
-	runbench<20>(cd, size);
-	runbench<19>(cd, size);
-	runbench<18>(cd, size);
-	runbench<17>(cd, size);
-	runbench<16>(cd, size);
-	runbench<15>(cd, size);
-	runbench<14>(cd, size);
-	runbench<13>(cd, size);
-	runbench<12>(cd, size);
-	runbench<11>(cd, size);
-	runbench<10>(cd, size);
-	runbench<9>(cd, size);
-	runbench<8>(cd, size);
-	runbench<7>(cd, size);
-	runbench<6>(cd, size);
-	runbench<5>(cd, size);
-	runbench<4>(cd, size);
-	runbench<3>(cd, size);
-	runbench<2>(cd, size);
-	runbench<1>(cd, size);
-	runbench<0>(cd, size);
+	runbench<32>(cd, size, doHalfs);
+	runbench<31>(cd, size, doHalfs);
+	runbench<30>(cd, size, doHalfs);
+	runbench<29>(cd, size, doHalfs);
+	runbench<28>(cd, size, doHalfs);
+	runbench<27>(cd, size, doHalfs);
+	runbench<26>(cd, size, doHalfs);
+	runbench<25>(cd, size, doHalfs);
+	runbench<24>(cd, size, doHalfs);
+	runbench<23>(cd, size, doHalfs);
+	runbench<22>(cd, size, doHalfs);
+	runbench<21>(cd, size, doHalfs);
+	runbench<20>(cd, size, doHalfs);
+	runbench<19>(cd, size, doHalfs);
+	runbench<18>(cd, size, doHalfs);
+	runbench<17>(cd, size, doHalfs);
+	runbench<16>(cd, size, doHalfs);
+	runbench<15>(cd, size, doHalfs);
+	runbench<14>(cd, size, doHalfs);
+	runbench<13>(cd, size, doHalfs);
+	runbench<12>(cd, size, doHalfs);
+	runbench<11>(cd, size, doHalfs);
+	runbench<10>(cd, size, doHalfs);
+	runbench<9>(cd, size, doHalfs);
+	runbench<8>(cd, size, doHalfs);
+	runbench<7>(cd, size, doHalfs);
+	runbench<6>(cd, size, doHalfs);
+	runbench<5>(cd, size, doHalfs);
+	runbench<4>(cd, size, doHalfs);
+	runbench<3>(cd, size, doHalfs);
+	runbench<2>(cd, size, doHalfs);
+	runbench<1>(cd, size, doHalfs);
+	runbench<0>(cd, size, doHalfs);
 
-	printf("------------------------------------------------------------------------------------------------------------------------------\n");
+	printf("--------------------------------------------------------------------------------------------------------------------------------------------------------------------\n");
 
 	// Copy results back to host memory
 	CUDA_SAFE_CALL( cudaMemcpy(c, cd, size*sizeof(double), cudaMemcpyDeviceToHost) );
