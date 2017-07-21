@@ -7,7 +7,7 @@
 #include <cstdio>
 #include <cstdarg>
 #include <cstring>
-#define CL_USE_DEPRECATED_OPENCL_2_0_APIS
+#define CL_USE_DEPRECATED_OPENCL_1_2_APIS
 #include "loclutil.h"
 #include "timestamp.h"
 
@@ -23,7 +23,9 @@
 #define SIZE_T_FORMAT "%zu"
 #endif
 
-enum KrnDataType{ kdt_int, kdt_float, kdt_double };
+enum KrnDataType{ kdt_int, kdt_float, kdt_double, kdt_half };
+
+typedef short cl_half2[2];
 
 char* ReadFile(const char *filename){
 	char *buffer = NULL;
@@ -166,6 +168,20 @@ void runbench(int memory_ratio, cl_command_queue queue, cl_kernel kernels[kdt_do
 	} else 
 		kernel_time_mad_dp = 0.0;
 
+	const cl_half2 seed_h = {15360, 15360}; // {1.0, 1.0}
+	double kernel_time_mad_hp;
+	kernel = kernels[kdt_half][memory_ratio];
+	if( kernel ){
+		OCL_SAFE_CALL( clSetKernelArg(kernel, 0, sizeof(cl_half2), &seed_h) );
+		OCL_SAFE_CALL( clSetKernelArg(kernel, 1, sizeof(cl_mem), &cbuffer) );
+		ts_start = getTimestamp();
+		OCL_SAFE_CALL( clEnqueueNDRangeKernel(queue, kernel, 1, NULL, dimGrid, dimBlock, 0, NULL, &event) );
+		OCL_SAFE_CALL( clWaitForEvents(1, &event) );
+		kernel_time_mad_hp = use_os_timer ? getElapsedtime(ts_start) : get_event_duration(event);
+		OCL_SAFE_CALL( clReleaseEvent( event ) );
+	} else
+		kernel_time_mad_hp = 0.0;
+
 	const short seed_i = 1.0;
 	kernel = kernels[kdt_int][memory_ratio];
 	OCL_SAFE_CALL( clSetKernelArg(kernel, 0, sizeof(cl_int), &seed_i) );
@@ -179,7 +195,7 @@ void runbench(int memory_ratio, cl_command_queue queue, cl_kernel kernels[kdt_do
 	const double memaccesses_ratio = (double)(memory_ratio)/UNROLL_ITERATIONS;
 	const double computations_ratio = 1.0-memaccesses_ratio;
 
-	printf("         %4d,   %8.3f,%8.2f,%8.2f,%7.2f,   %8.3f,%8.2f,%8.2f,%7.2f,  %8.3f,%8.2f,%8.2f,%7.2f\n", 
+	printf("         %4d,   %8.3f,%8.2f,%8.2f,%7.2f,   %8.3f,%8.2f,%8.2f,%7.2f,   %8.3f,%8.2f,%8.2f,%7.2f,  %8.3f,%8.2f,%8.2f,%7.2f\n",
 		UNROLL_ITERATIONS-memory_ratio,
 		(computations_ratio*(double)computations)/(memaccesses_ratio*(double)memoryoperations*sizeof(float)),
 		kernel_time_mad_sp,
@@ -189,6 +205,10 @@ void runbench(int memory_ratio, cl_command_queue queue, cl_kernel kernels[kdt_do
 		kernel_time_mad_dp,
 		(computations_ratio*(double)computations)/kernel_time_mad_dp*1000./(double)(1000*1000*1000),
 		(memaccesses_ratio*(double)memoryoperations*sizeof(double))/kernel_time_mad_dp*1000./(1000.*1000.*1000.),
+		(computations_ratio*(double)2*computations)/(memaccesses_ratio*(double)memoryoperations*sizeof(cl_half2)),
+		kernel_time_mad_hp,
+		(computations_ratio*(double)2*computations)/kernel_time_mad_hp*1000./(double)(1000*1000*1000),
+		(memaccesses_ratio*(double)memoryoperations*sizeof(cl_half2))/kernel_time_mad_hp*1000./(1000.*1000.*1000.),
 		(computations_ratio*(double)computations)/(memaccesses_ratio*(double)memoryoperations*sizeof(int)),
 		kernel_time_mad_int,
 		(computations_ratio*(double)computations)/kernel_time_mad_int*1000./(double)(1000*1000*1000),
@@ -214,6 +234,11 @@ extern "C" void mixbenchGPU(cl_device_id dev_id, double *c, long size, bool bloc
 	char *extensions = (char*)alloca(length);
 	OCL_SAFE_CALL( clGetDeviceInfo(dev_id, CL_DEVICE_EXTENSIONS, length, extensions, NULL) );
 	bool enable_dp = strstr(extensions, "cl_khr_fp64") != NULL;
+	if( !enable_dp )
+		printf("Warning:                Double precision computations are not supported\n");
+	bool enable_hp = strstr(extensions, "cl_khr_fp16") != NULL;
+	if( !enable_hp )
+		printf("Warning:                Half precision computations are not supported\n");
 
 	cl_context_properties ctxProps[] = { CL_CONTEXT_PLATFORM, (cl_context_properties)p_id, 0 };
 
@@ -244,7 +269,7 @@ extern "C" void mixbenchGPU(cl_device_id dev_id, double *c, long size, bool bloc
 	const char c_param_format_str[] = "-cl-std=CL1.1 -cl-mad-enable -Dclass_T=%s -Dblockdim=" SIZE_T_FORMAT " -Dmemory_ratio=%d %s %s";
 	const char *c_empty = "";
 	const char *c_striding = block_strided ? "-DBLOCK_STRIDED" : c_empty;
-	const char *c_enable_dp = "-DENABLE_DP";
+	const char *c_enable_dp = "-DENABLE_DP", *c_enable_hp = "-DENABLE_HP";
 	char c_build_params[256];
 	const char *c_kernel_source = {ReadFile("mix_kernels.cl")};
 	printf("Precompilation of kernels... ");
@@ -253,7 +278,7 @@ extern "C" void mixbenchGPU(cl_device_id dev_id, double *c, long size, bool bloc
 	cl_kernel kernel_warmup = BuildKernel(context, dev_id, c_kernel_source, c_build_params);
 
 	show_progress_init(32+1);
-	cl_kernel kernels[kdt_double+1][32+1];
+	cl_kernel kernels[kdt_half+1][32+1];
 	for(int i=0; i<=32; i++){
 		show_progress_step(0, '\\');
 		sprintf(c_build_params, c_param_format_str, "float", workgroupsize, i, c_striding, c_empty);
@@ -272,6 +297,14 @@ extern "C" void mixbenchGPU(cl_device_id dev_id, double *c, long size, bool bloc
 			kernels[kdt_double][i] = BuildKernel(context, dev_id, c_kernel_source, c_build_params);
 		} else
 			kernels[kdt_double][i] = 0;
+
+		if( enable_hp ){
+			show_progress_step(0, '-');
+			sprintf(c_build_params, c_param_format_str, "half2", workgroupsize, i, c_striding, c_enable_hp);
+			kernels[kdt_half][i] = BuildKernel(context, dev_id, c_kernel_source, c_build_params);
+		} else
+			kernels[kdt_half][i] = 0;
+
 		show_progress_step(1, '>');
 	}
 	show_progress_done();
@@ -282,14 +315,14 @@ extern "C" void mixbenchGPU(cl_device_id dev_id, double *c, long size, bool bloc
 	// Synchronize in order to wait for memory operations to finish
 	OCL_SAFE_CALL( clFinish(cmd_queue) );
 
-	printf("---------------------------------------------------------- CSV data ----------------------------------------------------------\n");
-	printf("Experiment ID, Single Precision ops,,,,              Double precision ops,,,,              Integer operations,,, \n");
-	printf("Compute iters, Flops/byte, ex.time,  GFLOPS, GB/sec, Flops/byte, ex.time,  GFLOPS, GB/sec, Iops/byte, ex.time,   GIOPS, GB/sec\n");
+	printf("----------------------------------------------------------------------------- CSV data -----------------------------------------------------------------------------\n");
+	printf("Experiment ID, Single Precision ops,,,,              Double precision ops,,,,              Half precision ops,,,,                Integer operations,,, \n");
+	printf("Compute iters, Flops/byte, ex.time,  GFLOPS, GB/sec, Flops/byte, ex.time,  GFLOPS, GB/sec, Flops/byte, ex.time,  GFLOPS, GB/sec, Iops/byte, ex.time,   GIOPS, GB/sec\n");
 
 	for(int i=32; i>=0; i--)
 		runbench(i, cmd_queue, kernels, c_buffer, size, workgroupsize, use_os_timer);
 
-	printf("------------------------------------------------------------------------------------------------------------------------------\n");
+	printf("--------------------------------------------------------------------------------------------------------------------------------------------------------------------\n");
 
 	// Copy results back to host memory
 	OCL_SAFE_CALL( clEnqueueReadBuffer(cmd_queue, c_buffer, CL_TRUE, 0, size*sizeof(double), c, 0, NULL, NULL) );
@@ -301,6 +334,8 @@ extern "C" void mixbenchGPU(cl_device_id dev_id, double *c, long size, bool bloc
 		ReleaseKernelNProgram(kernels[kdt_int][i]);
 		if( enable_dp )
 			ReleaseKernelNProgram(kernels[kdt_double][i]);
+		if( enable_hp )
+			ReleaseKernelNProgram(kernels[kdt_half][i]);
 	}
 
 	// Release buffer

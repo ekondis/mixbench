@@ -2,6 +2,18 @@
 	#pragma OPENCL EXTENSION cl_khr_fp64 : enable
 #endif
 
+#ifdef ENABLE_HP
+	#pragma OPENCL EXTENSION cl_khr_fp16 : enable
+#endif
+
+bool is_equal(const class_T a, const class_T b){
+#ifdef ENABLE_HP
+	return a.x==b.x && a.y==b.y;
+#else
+	return a==b;
+#endif
+}
+
 #define COMP_ITERATIONS (8192)
 #define UNROLL_ITERATIONS (32)
 #define UNROLLED_MEMORY_ACCESSES (UNROLL_ITERATIONS/2)
@@ -69,8 +81,8 @@ void benchmark_func(class_T seed, global volatile class_T *g_data){
 			array_index = index_base + initial_index_factor*index_stride;
 		}
 	}
-	if( (r0==(class_T)INFINITY) && (r1==(class_T)INFINITY) && (r2==(class_T)INFINITY) && (r3==(class_T)INFINITY) &&
-	  (r4==(class_T)INFINITY) && (r5==(class_T)INFINITY) && (r6==(class_T)INFINITY) && (r7==(class_T)INFINITY) ){ // extremely unlikely to happen
+	if( is_equal(r0, (class_T)INFINITY) && is_equal(r1, (class_T)INFINITY) && is_equal(r2, (class_T)INFINITY) && is_equal(r3, (class_T)INFINITY) &&
+	    is_equal(r4, (class_T)INFINITY) && is_equal(r5, (class_T)INFINITY) && is_equal(r6, (class_T)INFINITY) && is_equal(r7, (class_T)INFINITY) ){ // extremely unlikely to happen
 		g_data[0] = r0+r1+r2+r3+r4+r5+r6+r7;
 	}
 }
