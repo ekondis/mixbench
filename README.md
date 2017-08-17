@@ -4,16 +4,17 @@ The purpose of this benchmark tool is to evaluate performance bounds of GPUs on 
 Kernel types
 --------------
 
-Three types of experiments are executed combined with global memory accesses:
+Four types of experiments are executed combined with global memory accesses:
 
 1. Single precision Flops (multiply-additions)
 2. Double precision Flops (multiply-additions)
-3. Integer multiply-addition operations
+3. Half precision Flops (multiply-additions)
+4. Integer multiply-addition operations
 
 Building program
 --------------
 
-In order to build the program you should make sure that the following variables in "Makefile" is set to the CUDA/OpenCL installation directory:
+In order to build the program you should make sure that the following variables in "Makefile" are set properly according to the CUDA/OpenCL installation directories:
 
 ```
 CUDA_INSTALL_PATH = /usr/local/cuda
