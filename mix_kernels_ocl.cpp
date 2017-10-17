@@ -25,8 +25,6 @@
 
 enum KrnDataType{ kdt_int, kdt_float, kdt_double, kdt_half };
 
-typedef short cl_half2[2];
-
 char* ReadFile(const char *filename){
 	char *buffer = NULL;
 	int file_size, read_size;
