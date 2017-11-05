@@ -20,7 +20,7 @@ ifeq ($(OS),Darwin)
 else
     LFLAGS_OCL = -L${OCL_LIB_PATH} -lm -lstdc++ -lOpenCL -lrt
 endif
-NVCODE = -gencode=arch=compute_60,code=\"compute_60\" -gencode=arch=compute_30,code=\"compute_30\" -gencode=arch=compute_20,code=\"compute_20\"
+NVCODE = -gencode=arch=compute_60,code=\"compute_60\" -gencode=arch=compute_30,code=\"compute_30\"
 
 ifdef HIP_PATH
     HIPCC=$(HIP_PATH)/bin/hipcc
