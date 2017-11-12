@@ -42,7 +42,7 @@ https://github.com/GPUOpen-ProfessionalCompute-Tools/HIP
 
 Makefile checks if HIP is available in the system, and generate HIP binaries accordingly.
 
-Two executables will be produced for each platform, i.e. "mixbench-cuda" & "mixbench-cuda-ro", "mixbench-ocl" & "mixbench-ocl-ro" and "mixbench-hip" & "mixbench-hip-ro". The first one follows different design approach than the second one so results typically differ. The one that exhibits better performance is dependent on the underlying architecture and compiler characteristics.
+Two executables will be produced for each platform, i.e. "mixbench-cuda-alt" & "mixbench-cuda-ro", "mixbench-ocl-alt" & "mixbench-ocl-ro" and "mixbench-hip-alt" & "mixbench-hip-ro". The first one (-alt) follows different design approach than the second one (-ro) so results typically differ. The one that exhibits better performance is dependent on the underlying architecture and compiler characteristics.
 
 Execution results
 --------------
