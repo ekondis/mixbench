@@ -91,4 +91,10 @@ inline size_t GetMaxDeviceWGSize(cl_device_id devID){
 	return wgsize;
 }
 
+// Fix: Possible bug in Opencl headers.
+// See https://forums.khronos.org/showthread.php/11388-how-to-use-cl_half2
+#ifndef cl_half2
+typedef union { cl_half  CL_ALIGNED(2) s[2]; } cl_half2;
+#endif
+
 #endif
