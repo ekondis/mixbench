@@ -91,10 +91,18 @@ mix_kernels_cuda_ro.o: mix_kernels_cuda_ro.cu mix_kernels_cuda.h lcutil.h
 	${NVCC} ${NVCODE} ${NVFLAGS} -DUNIX -c $< -o $@
 
 mix_kernels_ocl.o: mix_kernels_ocl.cpp mix_kernels_ocl.h loclutil.h
+ifeq ($(shell ${CC} -c ${FLAGS_OCL} check-half2-def.cpp -o /dev/null 2>/dev/null; echo $$?),0)
 	${CC} -c ${FLAGS_OCL} $< -o $@
+else
+	${CC} -c ${FLAGS_OCL} -DHF_WORKAROUND $< -o $@
+endif
 
 mix_kernels_ocl_ro.o: mix_kernels_ocl_ro.cpp mix_kernels_ocl.h loclutil.h
+ifeq ($(shell ${CC} -c ${FLAGS_OCL} check-half2-def.cpp -o /dev/null 2>/dev/null; echo $$?),0)
 	${CC} -c ${FLAGS_OCL} $< -o $@
+else
+	${CC} -c ${FLAGS_OCL} -DHF_WORKAROUND $< -o $@
+endif
 
 #HIP
 main-hip.o: main-hip.cpp mix_kernels_hip.h lhiputil.h version_info.h
