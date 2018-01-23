@@ -38,7 +38,7 @@ inline __device__ half2 conv_int(const int i){ return half2(); }
 
 #endif
 
-template <class T, int blockdim, unsigned int granularity, unsigned int fusion_degree, unsigned int compute_iterations>
+template <class T, int blockdim, unsigned int granularity, unsigned int fusion_degree, unsigned int compute_iterations, bool TemperateUnroll>
 __global__ void benchmark_func(T seed, T *g_data){
 	const unsigned int blockSize = blockdim;
 	const int stride = blockSize;
@@ -52,6 +52,7 @@ __global__ void benchmark_func(T seed, T *g_data){
 			// Load elements (memory intensive part)
 			tmps[j] = g_data[idx+j*stride+k*big_stride];
 			// Perform computations (compute intensive part)
+			#pragma unroll TemperateUnroll ? 4 : 128
 			for(int i=0; i<compute_iterations; i++){
 				tmps[j] = tmps[j]*tmps[j]+seed;//tmps[(j+granularity/2)%granularity];
 			}
@@ -92,7 +93,7 @@ void runbench_warmup(double *cd, long size){
 	dim3 dimBlock(BLOCK_SIZE, 1, 1);
 	dim3 dimReducedGrid(TOTAL_REDUCED_BLOCKS, 1, 1);
 
-	benchmark_func< short, BLOCK_SIZE, ELEMENTS_PER_THREAD, FUSION_DEGREE, 0 ><<< dimReducedGrid, dimBlock >>>((short)1, (short*)cd);
+	benchmark_func< short, BLOCK_SIZE, ELEMENTS_PER_THREAD, FUSION_DEGREE, 0, true ><<< dimReducedGrid, dimBlock >>>((short)1, (short*)cd);
 	CUDA_SAFE_CALL( cudaGetLastError() );
 	CUDA_SAFE_CALL( cudaThreadSynchronize() );
 }
@@ -112,11 +113,11 @@ void runbench(double *cd, long size, bool doHalfs){
 	cudaEvent_t start, stop;
 
 	initializeEvents(&start, &stop);
-	benchmark_func< float, BLOCK_SIZE, ELEMENTS_PER_THREAD, FUSION_DEGREE, compute_iterations ><<< dimGrid, dimBlock >>>(1.0f, (float*)cd);
+	benchmark_func< float, BLOCK_SIZE, ELEMENTS_PER_THREAD, FUSION_DEGREE, compute_iterations, false ><<< dimGrid, dimBlock >>>(1.0f, (float*)cd);
 	float kernel_time_mad_sp = finalizeEvents(start, stop);
 
 	initializeEvents(&start, &stop);
-	benchmark_func< double, BLOCK_SIZE, ELEMENTS_PER_THREAD, FUSION_DEGREE, compute_iterations ><<< dimGrid, dimBlock >>>(1.0, cd);
+	benchmark_func< double, BLOCK_SIZE, ELEMENTS_PER_THREAD, FUSION_DEGREE, compute_iterations, false ><<< dimGrid, dimBlock >>>(1.0, cd);
 	float kernel_time_mad_dp = finalizeEvents(start, stop);
 
 	float kernel_time_mad_hp = 0.f;
@@ -124,12 +125,12 @@ void runbench(double *cd, long size, bool doHalfs){
 		initializeEvents(&start, &stop);
 		half2 h_ones;
 		*((int32_t*)&h_ones) = 15360 + (15360 << 16); // 1.0 as half
-		benchmark_func< half2, BLOCK_SIZE, ELEMENTS_PER_THREAD, FUSION_DEGREE, compute_iterations ><<< dimGrid, dimBlock >>>(h_ones, (half2*)cd);
+		benchmark_func< half2, BLOCK_SIZE, ELEMENTS_PER_THREAD, FUSION_DEGREE, compute_iterations, false ><<< dimGrid, dimBlock >>>(h_ones, (half2*)cd);
 		kernel_time_mad_hp = finalizeEvents(start, stop);
 	}
 
 	initializeEvents(&start, &stop);
-	benchmark_func< int, BLOCK_SIZE, ELEMENTS_PER_THREAD, FUSION_DEGREE, compute_iterations ><<< dimGrid, dimBlock >>>(1, (int*)cd);
+	benchmark_func< int, BLOCK_SIZE, ELEMENTS_PER_THREAD, FUSION_DEGREE, compute_iterations, true ><<< dimGrid, dimBlock >>>(1, (int*)cd);
 	float kernel_time_mad_int = finalizeEvents(start, stop);
 
 	printf("         %4d,   %8.3f,%8.2f,%8.2f,%7.2f,   %8.3f,%8.2f,%8.2f,%7.2f,   %8.3f,%8.2f,%8.2f,%7.2f,  %8.3f,%8.2f,%8.2f,%7.2f\n",

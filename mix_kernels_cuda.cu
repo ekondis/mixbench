@@ -68,7 +68,7 @@ inline __device__ half2 volatile_get(volatile half2 &p){ return half2(); }
 
 #endif
 
-template <class T, int blockdim, int memory_ratio>
+template <class T, int blockdim, int memory_ratio, bool TemperateUnroll>
 __global__ void benchmark_func(T seed, volatile T *g_data){
 	const int index_stride = blockdim;
 	const int index_base = blockIdx.x*blockdim*UNROLLED_MEMORY_ACCESSES + threadIdx.x;
@@ -90,7 +90,7 @@ __global__ void benchmark_func(T seed, volatile T *g_data){
 	  r7 = r0+conv_int<T>(17);
 
 	for(int j=0; j<COMP_ITERATIONS; j+=UNROLL_ITERATIONS){
-		#pragma unroll
+		#pragma unroll TemperateUnroll ? 2 : 128
 		for(int i=0; i<UNROLL_ITERATIONS-memory_ratio; i++){
 			r0 = r0 * r0 + r4;
 			r1 = r1 * r1 + r5;
@@ -155,7 +155,7 @@ void runbench_warmup(double *cd, long size){
 	dim3 dimBlock(BLOCK_SIZE, 1, 1);
 	dim3 dimReducedGrid(TOTAL_REDUCED_BLOCKS, 1, 1);
 
-	benchmark_func< short, BLOCK_SIZE, 0 ><<< dimReducedGrid, dimBlock >>>((short)1, (short*)cd);
+	benchmark_func< short, BLOCK_SIZE, 0, true ><<< dimReducedGrid, dimBlock >>>((short)1, (short*)cd);
 	CUDA_SAFE_CALL( cudaGetLastError() );
 	CUDA_SAFE_CALL( cudaThreadSynchronize() );
 }
@@ -178,11 +178,11 @@ void runbench(double *cd, long size, bool doHalfs){
 	cudaEvent_t start, stop;
 
 	initializeEvents(&start, &stop);
-	benchmark_func< float, BLOCK_SIZE, memory_ratio ><<< dimGrid, dimBlock >>>(1.0f, (float*)cd);
+	benchmark_func< float, BLOCK_SIZE, memory_ratio, false ><<< dimGrid, dimBlock >>>(1.0f, (float*)cd);
 	float kernel_time_mad_sp = finalizeEvents(start, stop);
 
 	initializeEvents(&start, &stop);
-	benchmark_func< double, BLOCK_SIZE, memory_ratio ><<< dimGrid, dimBlock >>>(1.0, cd);
+	benchmark_func< double, BLOCK_SIZE, memory_ratio, false ><<< dimGrid, dimBlock >>>(1.0, cd);
 	float kernel_time_mad_dp = finalizeEvents(start, stop);
 
 	float kernel_time_mad_hp = 0.f;
@@ -190,12 +190,12 @@ void runbench(double *cd, long size, bool doHalfs){
 		initializeEvents(&start, &stop);
 		half2 h_ones;
 		*((int32_t*)&h_ones) = 15360 + (15360 << 16); // 1.0 as half
-		benchmark_func< half2, BLOCK_SIZE, memory_ratio ><<< dimGrid, dimBlock >>>(h_ones, (half2*)cd);
+		benchmark_func< half2, BLOCK_SIZE, memory_ratio, false ><<< dimGrid, dimBlock >>>(h_ones, (half2*)cd);
 		kernel_time_mad_hp = finalizeEvents(start, stop);
 	}
 
 	initializeEvents(&start, &stop);
-	benchmark_func< int, BLOCK_SIZE, memory_ratio ><<< dimGrid, dimBlock >>>(1, (int*)cd);
+	benchmark_func< int, BLOCK_SIZE, memory_ratio, true ><<< dimGrid, dimBlock >>>(1, (int*)cd);
 	float kernel_time_mad_int = finalizeEvents(start, stop);
 
 	const double memaccesses_ratio = (double)(memory_ratio)/UNROLL_ITERATIONS;
