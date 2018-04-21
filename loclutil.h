@@ -29,8 +29,8 @@
 inline cl_device_id GetDeviceID(int index, FILE *fout){
 	cl_uint cnt_platforms, cnt_device_ids;
 	cl_device_id device_selected = NULL;
-	char dev_name[256];
-	
+	char dev_name[256], plat_name[256];
+
 	OCL_SAFE_CALL( clGetPlatformIDs(0, NULL, &cnt_platforms) );
 	cl_platform_id *platform_ids = (cl_platform_id*)alloca(sizeof(cl_platform_id)*cnt_platforms);
 	cl_device_id device_ids[256];
@@ -40,12 +40,17 @@ inline cl_device_id GetDeviceID(int index, FILE *fout){
 		fprintf(fout, "Available OpenCL devices:\n");
 	int cur_dev_idx = 1;
 	for(int i=0; i<(int)cnt_platforms; i++){
+		size_t sz_name_len;
+		OCL_SAFE_CALL( clGetPlatformInfo(platform_ids[i], CL_PLATFORM_NAME, 0, NULL, &sz_name_len) );
+		sz_name_len = sz_name_len>sizeof(plat_name) ? sizeof(plat_name) : sz_name_len;
+		OCL_SAFE_CALL( clGetPlatformInfo(platform_ids[i], CL_PLATFORM_NAME, sz_name_len, plat_name, NULL) );
+
 		OCL_SAFE_CALL( clGetDeviceIDs(platform_ids[i], CL_DEVICE_TYPE_ALL, 0, NULL, &cnt_device_ids) );
 		OCL_SAFE_CALL( clGetDeviceIDs(platform_ids[i], CL_DEVICE_TYPE_ALL, cnt_device_ids, device_ids, NULL) );
 		for(int d=0; d<(int)cnt_device_ids; d++){
 			if( fout ){
 				OCL_SAFE_CALL( clGetDeviceInfo(device_ids[d], CL_DEVICE_NAME, sizeof(dev_name), dev_name, NULL) );
-				fprintf(fout, "  %d. %s\n", cur_dev_idx, dev_name);
+				fprintf(fout, "  %d. %s/%s\n", cur_dev_idx, dev_name, plat_name);
 			}
 			if( cur_dev_idx==index )
 				device_selected = device_ids[d];
