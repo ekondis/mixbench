@@ -8,13 +8,8 @@
 #include <hip/hip_fp16.h>
 #include <stdio.h>
 
-#ifdef __CUDACC__
-#include <math_constants.h>
-#define GPU_INF(_T)   (_T)(CUDART_INF)
-#else
-#include <limits>
-#define GPU_INF(_T)   std::numeric_limits<_T>::infinity()
-#endif
+#define HIPRT_INF     __longlong_as_double(0x7ff0000000000000ULL)
+#define GPU_INF(_T)   (_T)(HIPRT_INF)
 
 typedef __half2 half2;
 
