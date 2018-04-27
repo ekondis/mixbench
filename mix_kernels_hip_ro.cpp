@@ -37,7 +37,7 @@ template<>
 inline __device__ bool is_equal(const half2& a, const half2& b){ return __hbeq2(a, b); }
 
 template <class T, int blockSize, unsigned int granularity, unsigned int compute_iterations>
-__global__ void benchmark_func(hipLaunchParm lp, T seed, T *g_data){
+__global__ void benchmark_func(T seed, T *g_data){
 	const int stride = blockSize;
 	const int idx = hipBlockIdx_x*blockSize*granularity + hipThreadIdx_x;
 
@@ -86,7 +86,7 @@ void runbench_warmup(double *cd, long size){
 	dim3 dimBlock(BLOCK_SIZE, 1, 1);
 	dim3 dimReducedGrid(TOTAL_REDUCED_BLOCKS, 1, 1);
 
-	hipLaunchKernel(HIP_KERNEL_NAME(benchmark_func< short, BLOCK_SIZE, ELEMENTS_PER_THREAD, 0 >), dim3(dimReducedGrid), dim3(dimBlock ), 0, 0, (short)1, (short*)cd);
+	hipLaunchKernelGGL(HIP_KERNEL_NAME(benchmark_func< short, BLOCK_SIZE, ELEMENTS_PER_THREAD, 0 >), dim3(dimReducedGrid), dim3(dimBlock ), 0, 0, (short)1, (short*)cd);
 	CUDA_SAFE_CALL( hipGetLastError() );
 	CUDA_SAFE_CALL( hipDeviceSynchronize() );
 }
@@ -104,20 +104,20 @@ void runbench(double *cd, long size){
 	hipEvent_t start, stop;
 
 	initializeEvents(&start, &stop);
-	hipLaunchKernel(HIP_KERNEL_NAME(benchmark_func< float, BLOCK_SIZE, ELEMENTS_PER_THREAD, compute_iterations >), dim3(dimGrid), dim3(dimBlock ), 0, 0, 1.0f, (float*)cd);
+	hipLaunchKernelGGL(HIP_KERNEL_NAME(benchmark_func< float, BLOCK_SIZE, ELEMENTS_PER_THREAD, compute_iterations >), dim3(dimGrid), dim3(dimBlock ), 0, 0, 1.0f, (float*)cd);
 	float kernel_time_mad_sp = finalizeEvents(start, stop);
 
 	initializeEvents(&start, &stop);
-	hipLaunchKernel(HIP_KERNEL_NAME(benchmark_func< double, BLOCK_SIZE, ELEMENTS_PER_THREAD, compute_iterations >), dim3(dimGrid), dim3(dimBlock ), 0, 0, 1.0, cd);
+	hipLaunchKernelGGL(HIP_KERNEL_NAME(benchmark_func< double, BLOCK_SIZE, ELEMENTS_PER_THREAD, compute_iterations >), dim3(dimGrid), dim3(dimBlock ), 0, 0, 1.0, cd);
 	float kernel_time_mad_dp = finalizeEvents(start, stop);
 
 	initializeEvents(&start, &stop);
 	half2 h_ones(1.0f);
-	hipLaunchKernel(HIP_KERNEL_NAME(benchmark_func< half2, BLOCK_SIZE, ELEMENTS_PER_THREAD, compute_iterations >), dim3(dimGrid), dim3(dimBlock ), 0, 0, h_ones, (half2*)cd);
+	hipLaunchKernelGGL(HIP_KERNEL_NAME(benchmark_func< half2, BLOCK_SIZE, ELEMENTS_PER_THREAD, compute_iterations >), dim3(dimGrid), dim3(dimBlock ), 0, 0, h_ones, (half2*)cd);
 	float kernel_time_mad_hp = finalizeEvents(start, stop);
 
 	initializeEvents(&start, &stop);
-	hipLaunchKernel(HIP_KERNEL_NAME(benchmark_func< int, BLOCK_SIZE, ELEMENTS_PER_THREAD, compute_iterations >), dim3(dimGrid), dim3(dimBlock ), 0, 0, 1, (int*)cd);
+	hipLaunchKernelGGL(HIP_KERNEL_NAME(benchmark_func< int, BLOCK_SIZE, ELEMENTS_PER_THREAD, compute_iterations >), dim3(dimGrid), dim3(dimBlock ), 0, 0, 1, (int*)cd);
 	float kernel_time_mad_int = finalizeEvents(start, stop);
 
 	printf("         %4d,   %8.3f,%8.2f,%8.2f,%7.2f,   %8.3f,%8.2f,%8.2f,%7.2f,   %8.3f,%8.2f,%8.2f,%7.2f,  %8.3f,%8.2f,%8.2f,%7.2f\n",

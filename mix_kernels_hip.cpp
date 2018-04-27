@@ -38,7 +38,7 @@ inline __device__ bool is_equal(const half2& a, const half2& b){ return __hbeq2(
 
 template <class T, int blockSize, int memory_ratio>
 __global__ void
-benchmark_func(hipLaunchParm lp, T seed, volatile T *g_data){
+benchmark_func(T seed, volatile T *g_data){
 	const int index_base = hipBlockIdx_x*blockSize*UNROLLED_MEMORY_ACCESSES + hipThreadIdx_x;
 	const int halfarraysize = hipGridDim_x*blockSize*UNROLLED_MEMORY_ACCESSES;
 	const int offset_slips = 1+UNROLLED_MEMORY_ACCESSES-((memory_ratio+1)/2);
@@ -122,7 +122,7 @@ void runbench_warmup(double *cd, long size){
 	dim3 dimBlock(BLOCK_SIZE, 1, 1);
 	dim3 dimReducedGrid(TOTAL_REDUCED_BLOCKS, 1, 1);
 
-	hipLaunchKernel(HIP_KERNEL_NAME(benchmark_func< short, BLOCK_SIZE, 0 >), dim3(dimReducedGrid), dim3(dimBlock ), 0, 0, (short)1, (short*)cd);
+	hipLaunchKernelGGL(HIP_KERNEL_NAME(benchmark_func< short, BLOCK_SIZE, 0 >), dim3(dimReducedGrid), dim3(dimBlock ), 0, 0, (short)1, (short*)cd);
 	CUDA_SAFE_CALL( hipGetLastError() );
 	CUDA_SAFE_CALL( hipDeviceSynchronize() );
 }
@@ -145,20 +145,20 @@ void runbench(double *cd, long size){
 	hipEvent_t start, stop;
 
 	initializeEvents(&start, &stop);
-	hipLaunchKernel(HIP_KERNEL_NAME(benchmark_func< float, BLOCK_SIZE, memory_ratio >), dim3(dimGrid), dim3(dimBlock ), 0, 0, 1.0f, (float*)cd);
+	hipLaunchKernelGGL(HIP_KERNEL_NAME(benchmark_func< float, BLOCK_SIZE, memory_ratio >), dim3(dimGrid), dim3(dimBlock ), 0, 0, 1.0f, (float*)cd);
 	float kernel_time_mad_sp = finalizeEvents(start, stop);
 
 	initializeEvents(&start, &stop);
-	hipLaunchKernel(HIP_KERNEL_NAME(benchmark_func< double, BLOCK_SIZE, memory_ratio >), dim3(dimGrid), dim3(dimBlock ), 0, 0, 1.0, cd);
+	hipLaunchKernelGGL(HIP_KERNEL_NAME(benchmark_func< double, BLOCK_SIZE, memory_ratio >), dim3(dimGrid), dim3(dimBlock ), 0, 0, 1.0, cd);
 	float kernel_time_mad_dp = finalizeEvents(start, stop);
 
 	initializeEvents(&start, &stop);
 	half2 h_ones(1.0f);
-	hipLaunchKernel(HIP_KERNEL_NAME(benchmark_func< half2, BLOCK_SIZE, memory_ratio >), dim3(dimGrid), dim3(dimBlock ), 0, 0, h_ones, (half2*)cd);
+	hipLaunchKernelGGL(HIP_KERNEL_NAME(benchmark_func< half2, BLOCK_SIZE, memory_ratio >), dim3(dimGrid), dim3(dimBlock ), 0, 0, h_ones, (half2*)cd);
 	float kernel_time_mad_hp = finalizeEvents(start, stop);
 
 	initializeEvents(&start, &stop);
-	hipLaunchKernel(HIP_KERNEL_NAME(benchmark_func< int, BLOCK_SIZE, memory_ratio >), dim3(dimGrid), dim3(dimBlock ), 0, 0, 1, (int*)cd);
+	hipLaunchKernelGGL(HIP_KERNEL_NAME(benchmark_func< int, BLOCK_SIZE, memory_ratio >), dim3(dimGrid), dim3(dimBlock ), 0, 0, 1, (int*)cd);
 	float kernel_time_mad_int = finalizeEvents(start, stop);
 
 	const double memaccesses_ratio = (double)(memory_ratio)/UNROLL_ITERATIONS;
