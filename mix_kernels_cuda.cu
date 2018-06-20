@@ -21,7 +21,12 @@ template<class T>
 inline __device__ T conv_int(const int i){ return static_cast<T>(i); }
 template<class T>
 inline __device__ T conv_double(const double v){ return static_cast<T>(v); }
-
+template<class T>
+inline __device__ T add(const T a, const T b){ return a+b; }
+template<class T>
+inline __device__ T mad(const T a, const T b, const T c){ return a*b+c; }
+template<class T>
+inline __device__ bool equal(const T a, const T b){ return a==b; }
 template<class T>
 inline __device__ void volatile_set(volatile T &p, T v){ p = v; }
 template<class T>
@@ -29,12 +34,14 @@ inline __device__ T volatile_get(volatile T &p){ return p; }
 
 #if __CUDA_ARCH__ >= 530
 
-inline __device__ half2 operator*(const half2 &a, const half2 &b) { return __hmul2(a, b); }
-inline __device__ half2 operator+(const half2 &a, const half2 &b) { return __hadd2(a, b); }
-inline __device__ half2& operator+=(half2& a, const half2& b){ return a = __hadd2(a, b); }
-inline __device__ bool operator==(const half2& a, const half2& b){ return __hbeq2(a, b); }
 template<>
 inline __device__ half2 conv_int(const int i){ return __half2half2( __int2half_rd(i) ); }
+template<>
+inline __device__ half2 add(const half2 a, const half2 b){ return __hadd2(a, b); }
+template<>
+inline __device__ half2 mad(const half2 a, const half2 b, const half2 c){ return __hfma2(a, b, c); }
+template<>
+inline __device__ bool equal(const half2 a, const half2 b){ return __hbeq2(a, b); }
 template<>
 inline __device__ half2 conv_double(const double v){ return __float2half2_rn(static_cast<float>(v)); }
 template<>
@@ -52,13 +59,15 @@ inline __device__ half2 volatile_get(volatile half2 &p){
 
 #else
 
-// Dummy definitions as workaround in case fp16 is not supported
-inline __device__ half2 operator*(const half2 &a, const half2 &b) { return a; }
-inline __device__ half2 operator+(const half2 &a, const half2 &b) { return a; }
-inline __device__ half2& operator+=(half2& a, const half2& b){ return a = b; }
-inline __device__ bool operator==(const half2& a, const half2& b){ return false; }
+// a dummy implementations as a workaround
 template<>
 inline __device__ half2 conv_int(const int i){ return half2(); }
+template<>
+inline __device__ half2 add(const half2 a, const half2 b){ return half2(); }
+template<>
+inline __device__ half2 mad(const half2 a, const half2 b, const half2 c){ return half2(); }
+template<>
+inline __device__ bool equal(const half2 a, const half2 b){ return false; }
 template<>
 inline __device__ half2 conv_double(const double v){ return half2(); }
 template<>
@@ -80,26 +89,26 @@ __global__ void benchmark_func(T seed, volatile T *g_data){
 	int initial_index_factor = 0;
 
 	int array_index = index_base;
-	T r0 = seed + conv_int<T>(blockIdx.x * blockdim + threadIdx.x),
-	  r1 = r0+conv_int<T>(2),
-	  r2 = r0+conv_int<T>(3),
-	  r3 = r0+conv_int<T>(5),
-	  r4 = r0+conv_int<T>(7),
-	  r5 = r0+conv_int<T>(11),
-	  r6 = r0+conv_int<T>(13),
-	  r7 = r0+conv_int<T>(17);
+	T r0 = add(seed, conv_int<T>(blockIdx.x * blockdim + threadIdx.x)),
+	  r1 = add(r0, conv_int<T>(2)),
+	  r2 = add(r0, conv_int<T>(3)),
+	  r3 = add(r0, conv_int<T>(5)),
+	  r4 = add(r0, conv_int<T>(7)),
+	  r5 = add(r0, conv_int<T>(11)),
+	  r6 = add(r0, conv_int<T>(13)),
+	  r7 = add(r0, conv_int<T>(17));
 
 	for(int j=0; j<COMP_ITERATIONS; j+=UNROLL_ITERATIONS){
 		#pragma unroll TemperateUnroll ? 2 : 128
 		for(int i=0; i<UNROLL_ITERATIONS-memory_ratio; i++){
-			r0 = r0 * r0 + r4;
-			r1 = r1 * r1 + r5;
-			r2 = r2 * r2 + r6;
-			r3 = r3 * r3 + r7;
-			r4 = r4 * r4 + r0;
-			r5 = r5 * r5 + r1;
-			r6 = r6 * r6 + r2;
-			r7 = r7 * r7 + r3;
+			r0 = mad(r0, r0, r4);
+			r1 = mad(r1, r1, r5);
+			r2 = mad(r2, r2, r6);
+			r3 = mad(r3, r3, r7);
+			r4 = mad(r4, r4, r0);
+			r5 = mad(r5, r5, r1);
+			r6 = mad(r6, r6, r2);
+			r7 = mad(r7, r7, r3);
 		}
 		bool do_write = true;
 		int reg_idx = 0;
@@ -123,9 +132,9 @@ __global__ void benchmark_func(T seed, volatile T *g_data){
 			array_index = index_base + initial_index_factor*index_stride;
 		}
 	}
-	if( (r0==conv_double<T>(CUDART_INF)) && (r1==conv_double<T>(CUDART_INF)) && (r2==conv_double<T>(CUDART_INF)) && (r3==conv_double<T>(CUDART_INF)) &&
-	    (r4==conv_double<T>(CUDART_INF)) && (r5==conv_double<T>(CUDART_INF)) && (r6==conv_double<T>(CUDART_INF)) && (r7==conv_double<T>(CUDART_INF)) ){ // extremely unlikely to happen
-		volatile_set(g_data[0], static_cast<T>(r0+r1+r2+r3+r4+r5+r6+r7));
+	if( equal(r0, conv_double<T>(CUDART_INF)) && equal(r1, conv_double<T>(CUDART_INF)) && equal(r2, conv_double<T>(CUDART_INF)) && equal(r3, conv_double<T>(CUDART_INF)) &&
+	    equal(r4, conv_double<T>(CUDART_INF)) && equal(r5, conv_double<T>(CUDART_INF)) && equal(r6, conv_double<T>(CUDART_INF)) && equal(r7, conv_double<T>(CUDART_INF)) ){ // extremely unlikely to happen
+		volatile_set(g_data[0], static_cast<T>(add(add(add(r0, r1), add(r2, r3)), add(add(r4, r5), add(r6,r7)))));
 	}
 
 }

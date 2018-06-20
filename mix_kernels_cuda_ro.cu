@@ -17,25 +17,27 @@
 template<class T>
 inline __device__ T conv_int(const int i){ return static_cast<T>(i); }
 
-#if __CUDA_ARCH__ >= 530
+template<class T>
+inline __device__ T mad(const T a, const T b, const T c){ return a*b+c; }
 
-inline __device__ half2 operator*(const half2 &a, const half2 &b) { return __hmul2(a, b); }
-inline __device__ half2 operator+(const half2 &a, const half2 &b) { return __hadd2(a, b); }
-inline __device__ half2& operator+=(half2& a, const half2& b){ return a = __hadd2(a, b); }
-inline __device__ bool operator==(const half2& a, const half2& b){ return __hbeq2(a, b); }
+template<class T>
+inline __device__ bool equal(const T a, const T b){ return a==b; }
+
+#if __CUDA_ARCH__ >= 530
 template<>
 inline __device__ half2 conv_int(const int i){ return __half2half2( __int2half_rd(i) ); }
-
+template<>
+inline __device__ half2 mad(const half2 a, const half2 b, const half2 c){ return __hfma2(a, b, c)/*__hadd2(__hmul2(a, b), c)*/; }
+template<>
+inline __device__ bool equal(const half2 a, const half2 b){ return __hbeq2(a, b); }
 #else
-
-// Dummy definitions as workaround in case fp16 is not supported
-inline __device__ half2 operator*(const half2 &a, const half2 &b) { return a; }
-inline __device__ half2 operator+(const half2 &a, const half2 &b) { return a; }
-inline __device__ half2& operator+=(half2& a, const half2& b){ return a = b; }
-inline __device__ bool operator==(const half2& a, const half2& b){ return false; }
+// a dummy implementations as a workaround
 template<>
 inline __device__ half2 conv_int(const int i){ return half2(); }
-
+template<>
+inline __device__ half2 mad(const half2 a, const half2 b, const half2 c){ return half2(); }
+template<>
+inline __device__ bool equal(const half2 a, const half2 b){ return false; }
 #endif
 
 template <class T, int blockdim, unsigned int granularity, unsigned int fusion_degree, unsigned int compute_iterations, bool TemperateUnroll>
@@ -54,16 +56,16 @@ __global__ void benchmark_func(T seed, T *g_data){
 			// Perform computations (compute intensive part)
 			#pragma unroll TemperateUnroll ? 4 : 128
 			for(int i=0; i<compute_iterations; i++){
-				tmps[j] = tmps[j]*tmps[j]+seed;//tmps[(j+granularity/2)%granularity];
+				tmps[j] = mad(tmps[j], tmps[j], seed);
 			}
 		}
 		// Multiply add reduction
 		T sum = conv_int<T>(0);
 		#pragma unroll
 		for(int j=0; j<granularity; j+=2)
-			sum += tmps[j]*tmps[j+1];
+			sum = mad(tmps[j], tmps[j+1], sum);
 		// Dummy code
-		if( sum==conv_int<T>(-1) ) // Designed so it never executes
+		if( equal(sum, conv_int<T>(-1)) ) // Designed so it never executes
 			g_data[idx+k*big_stride] = sum;
 	}
 }
