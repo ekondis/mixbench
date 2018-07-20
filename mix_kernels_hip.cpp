@@ -38,14 +38,13 @@ inline __device__ bool is_equal(const half2& a, const half2& b){ return __hbeq2(
 
 template <class T, int blockSize, int memory_ratio>
 __global__ void
-benchmark_func(T seed, volatile T *g_data){
+benchmark_func(T seed, T *g_data){
 	const int index_base = hipBlockIdx_x*blockSize*UNROLLED_MEMORY_ACCESSES + hipThreadIdx_x;
 	const int halfarraysize = hipGridDim_x*blockSize*UNROLLED_MEMORY_ACCESSES;
 	const int offset_slips = 1+UNROLLED_MEMORY_ACCESSES-((memory_ratio+1)/2);
 	const int array_index_bound = index_base+offset_slips*blockSize;
 	const int initial_index_range = memory_ratio>0 ? UNROLLED_MEMORY_ACCESSES % ((memory_ratio+1)/2) : 1;
 	int initial_index_factor = 0;
-	volatile T *data = g_data;
 
 	int array_index = index_base;
 	T r0 = seed + hipBlockIdx_x * blockSize + hipThreadIdx_x,
@@ -76,9 +75,9 @@ benchmark_func(T seed, volatile T *g_data){
 			// Each iteration maps to one memory operation
 			T& r = reg_idx==0 ? r0 : (reg_idx==1 ? r1 : (reg_idx==2 ? r2 : (reg_idx==3 ? r3 : (reg_idx==4 ? r4 : (reg_idx==5 ? r5 : (reg_idx==6 ? r6 : r7))))));
 			if( do_write )
-				data[ array_index+halfarraysize ] = r;
+				g_data[ array_index+halfarraysize ] = r;
 			else {
-				r = data[ array_index ];
+				r = g_data[ array_index ];
 				if( ++reg_idx>=REGBLOCK_SIZE )
 					reg_idx = 0;
 				array_index += blockSize;
