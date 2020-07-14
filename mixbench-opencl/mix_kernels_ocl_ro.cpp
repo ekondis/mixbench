@@ -257,7 +257,7 @@ extern "C" void mixbenchGPU(cl_device_id dev_id, double *c, long size, bool bloc
 
 	// Load source, create program and all kernels
 	printf("Loading kernel source file...\n");
-	const char c_param_format_str[] = "-cl-std=CL1.1 -cl-mad-enable -Dclass_T=%s -Dblockdim=" SIZE_T_FORMAT " -DCOMPUTE_ITERATIONS=%d -DELEMENTS_PER_THREAD=%d -DFUSION_DEGREE=%d %s %s";
+	const char c_param_format_str[] = "-cl-std=CL1.2 -cl-mad-enable -Dclass_T=%s -Dblockdim=" SIZE_T_FORMAT " -DCOMPUTE_ITERATIONS=%d -DELEMENTS_PER_THREAD=%d -DFUSION_DEGREE=%d %s %s";
 	const char *c_empty = "";
 	const char *c_striding = block_strided ? "-DBLOCK_STRIDED" : c_empty;
 	const char *c_enable_dp = "-DENABLE_DP", *c_enable_hp = "-DENABLE_HP";
