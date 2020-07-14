@@ -14,101 +14,105 @@ Four types of experiments are executed combined with global memory accesses:
 Building program
 --------------
 
-In order to build the program you should make sure that the following variables in "Makefile" are set properly according to the CUDA/OpenCL installation directories:
+Building is based now on CMake files. Each implementation resides in a separate folder:
+
+* CUDA implementation: `mixbench-cuda`
+* OpenCL implementation: `mixbench-opencl`
+* HIP implementation: `mixbench-hip`
+
+Thus, to build a particular implementation use the proper `CMakeLists.txt`, e.g. for the OpenCL implementation you may use the commands as follows:
 
 ```
-CUDA_INSTALL_PATH = /usr/local/cuda
-OCL_INSTALL_PATH = /opt/AMDAPPSDK
-CUDA_INC_PATH = ${CUDA_INSTALL_PATH}/include
-CUDA_LIB_PATH = ${CUDA_INSTALL_PATH}/lib64
-OCL_INC_PATH = ${OCL_INSTALL_PATH}/include
-OCL_LIB_PATH = ${OCL_INSTALL_PATH}/lib/x86_64
+mkdir build
+cd build
+cmake ../mixbench-opencl
 ```
 
-*CUDA_INSTALL_PATH* is required to locate nvcc compiler, *CUDA_INC_PATH* should point to the CUDA headers include path, *CUDA_LIB_PATH* should point to the CUDA libraries, *OCL_INC_PATH* should point to the OpenCL header file and *OCL_LIB_PATH* should point to the OpenCL library. *OCL_INSTALL_PATH* is not required to point at any particular SDK as long as the header and library can be located.
-
-Afterwards, just do make:
+In some cases (depending on the CMake version) the OpenCL files might not be discovered automatically. In such cases you might need to provide the OpenCL directories explicitly, as in the examples below:
 
 ```
-make
+cmake ../mixbench-opencl -DOpenCL_LIBRARY=/usr/local/cuda/lib64/libOpenCL.so -DOpenCL_INCLUDE_DIR=/usr/local/cuda/include/
+cmake ../mixbench-opencl -DOpenCL_LIBRARY=/opt/rocm/lib/libOpenCL.so -DOpenCL_INCLUDE_DIR=/opt/rocm/opencl/include/
+cmake ../mixbench-opencl -DOpenCL_LIBRARY=/opt/amdgpu-pro/lib/x86_64-linux-gnu/libOpenCL.so
 ```
 
 For HIP version, the HIP_PATH environment variable should be set to point to HIP installation directory. For more information follow the instructions on the following blog to properly install ROCK and ROCR drivers:  
-http://gpuopen.com/getting-started-with-boltzmann-components-platforms-installation/  
-Install the HCC compiler:  
-https://bitbucket.org/multicoreware/hcc/wiki/Home  
-Install HIP:  
+* ROCm:  
+https://github.com/RadeonOpenCompute/ROCm
+* HIP:  
 https://github.com/GPUOpen-ProfessionalCompute-Tools/HIP
 
-Makefile checks if HIP is available in the system, and generate HIP binaries accordingly.
-
-Two executables will be produced for each platform, i.e. "mixbench-cuda-alt" & "mixbench-cuda-ro", "mixbench-ocl-alt" & "mixbench-ocl-ro" and "mixbench-hip-alt" & "mixbench-hip-ro". The first one (-alt) follows different design approach than the second one (-ro) so results typically differ. The one that exhibits better performance is dependent on the underlying architecture and compiler characteristics.
+Two executables will be produced for each platform, i.e. "mixbench-cuda-alt" & "mixbench-cuda-ro", "mixbench-ocl-alt" & "mixbench-ocl-ro" and "mixbench-hip-alt" & "mixbench-hip-ro".
+The first one (-alt) follows different design approach than the second one (-ro) so results typically sightly differ.
+The one that exhibits better performance is dependent on the underlying architecture and compiler characteristics.
 
 Execution results
 --------------
 
-A typical execution output on an NVidia GTX480 GPU is:
+A typical execution output on an NVidia RTX-2070 GPU is:
 ```
-mixbench/read-only (compute & memory balancing GPU microbenchmark)
+mixbench/read-only (v0.03-2-gbccfd71)
 ------------------------ Device specifications ------------------------
-Device:              GeForce GTX 480
-CUDA driver version: 8.0
-GPU clock rate:      1550 MHz
-Memory clock rate:   950 MHz
-Memory bus width:    384 bits
+Device:              GeForce RTX 2070
+CUDA driver version: 10.20
+GPU clock rate:      1620 MHz
+Memory clock rate:   3500 MHz
+Memory bus width:    256 bits
 WarpSize:            32
-L2 cache size:       768 KB
-Total global mem:    1530 MB
+L2 cache size:       4096 KB
+Total global mem:    7979 MB
 ECC enabled:         No
-Compute Capability:  2.0
-Total SPs:           480 (15 MPs x 32 SPs/MP)
-Compute throughput:  1488.00 GFlops (theoretical single precision FMAs)
-Memory bandwidth:    182.40 GB/sec
+Compute Capability:  7.5
+Total SPs:           2304 (36 MPs x 64 SPs/MP)
+Compute throughput:  7464.96 GFlops (theoretical single precision FMAs)
+Memory bandwidth:    448.06 GB/sec
 -----------------------------------------------------------------------
-Total GPU memory 1605042176, free 1493491712
-Buffer size: 256MB
-Trade-off type:compute with global memory (block strided)
----------------------------------------------------------- CSV data ----------------------------------------------------------
-Experiment ID, Single Precision ops,,,,              Double precision ops,,,,              Integer operations,,,
-Compute iters, Flops/byte, ex.time,  GFLOPS, GB/sec, Flops/byte, ex.time,  GFLOPS, GB/sec, Iops/byte, ex.time,   GIOPS, GB/sec
-            0,     0.250,    0.82,   40.94, 163.76,      0.125,    1.65,   20.28, 162.21,     0.250,    0.82,   40.89, 163.55
-            1,     0.750,    0.82,  122.92, 163.89,      0.375,    1.65,   60.95, 162.53,     0.750,    0.82,  122.93, 163.90
-            2,     1.250,    0.82,  204.70, 163.76,      0.625,    1.65,  101.44, 162.30,     1.250,    0.82,  204.78, 163.83
-            3,     1.750,    0.82,  286.56, 163.75,      0.875,    1.65,  141.93, 162.21,     1.750,    0.82,  287.21, 164.12
-            4,     2.250,    0.82,  367.95, 163.53,      1.125,    1.74,  173.98, 154.65,     2.250,    0.82,  368.84, 163.93
-            5,     2.750,    0.82,  450.16, 163.69,      1.375,    2.06,  179.29, 130.39,     2.750,    0.83,  446.77, 162.46
-            6,     3.250,    0.82,  531.46, 163.53,      1.625,    2.42,  180.31, 110.96,     3.250,    0.84,  518.01, 159.39
-            7,     3.750,    0.82,  612.06, 163.22,      1.875,    2.77,  181.42,  96.76,     3.750,    0.87,  581.29, 155.01
-            8,     4.250,    0.82,  691.81, 162.78,      2.125,    3.14,  181.79,  85.55,     4.250,    0.88,  647.41, 152.33
-            9,     4.750,    0.83,  770.56, 162.22,      2.375,    3.50,  182.25,  76.74,     4.750,    0.93,  683.16, 143.82
-           10,     5.250,    0.83,  846.47, 161.23,      2.625,    3.86,  182.67,  69.59,     5.250,    1.01,  695.39, 132.45
-           11,     5.750,    0.84,  915.16, 159.16,      2.875,    4.22,  183.02,  63.66,     5.750,    1.10,  699.84, 121.71
-           12,     6.250,    0.85,  989.75, 158.36,      3.125,    4.60,  182.55,  58.42,     6.250,    1.19,  707.60, 113.22
-           13,     6.750,    0.86, 1053.37, 156.06,      3.375,    4.96,  182.73,  54.14,     6.750,    1.27,  711.56, 105.42
-           14,     7.250,    0.88, 1107.91, 152.81,      3.625,    5.30,  183.54,  50.63,     7.250,    1.36,  714.69,  98.58
-           15,     7.750,    0.90, 1156.71, 149.25,      3.875,    5.66,  183.66,  47.40,     7.750,    1.45,  717.05,  92.52
-           16,     8.250,    0.93, 1184.79, 143.61,      4.125,    6.03,  183.78,  44.55,     8.250,    1.54,  718.77,  87.12
-           17,     8.750,    0.96, 1219.80, 139.41,      4.375,    6.38,  183.94,  42.04,     8.750,    1.64,  717.85,  82.04
-           18,     9.250,    1.00, 1237.59, 133.79,      4.625,    6.75,  184.06,  39.80,     9.250,    1.72,  721.70,  78.02
-           20,    10.250,    1.08, 1270.36, 123.94,      5.125,    7.47,  184.19,  35.94,    10.250,    1.91,  721.23,  70.36
-           22,    11.250,    1.17, 1295.39, 115.15,      5.625,    8.19,  184.33,  32.77,    11.250,    2.08,  727.47,  64.66
-           24,    12.250,    1.25, 1313.87, 107.25,      6.125,    8.91,  184.43,  30.11,    12.250,    2.26,  727.94,  59.42
-           28,    14.250,    1.43, 1335.77,  93.74,      7.125,   10.36,  184.61,  25.91,    14.250,    2.63,  727.97,  51.09
-           32,    16.250,    1.62, 1347.92,  82.95,      8.125,   11.81,  184.75,  22.74,    16.250,    2.99,  730.50,  44.95
-           40,    20.250,    1.97, 1378.34,  68.07,     10.125,   14.70,  184.93,  18.26,    20.250,    3.72,  730.44,  36.07
-           48,    24.250,    2.33, 1395.57,  57.55,     12.125,   17.59,  185.05,  15.26,    24.250,    4.43,  734.33,  30.28
-           56,    28.250,    2.69, 1407.40,  49.82,     14.125,   20.48,  185.14,  13.11,    28.250,    5.16,  735.41,  26.03
-           64,    32.250,    3.06, 1413.34,  43.82,     16.125,   23.37,  185.20,  11.49,    32.250,    5.88,  736.20,  22.83
-           80,    40.250,    3.78, 1430.36,  35.54,     20.125,   29.16,  185.29,   9.21,    40.250,    7.32,  737.66,  18.33
-           96,    48.250,    4.53, 1429.22,  29.62,     24.125,   34.94,  185.34,   7.68,    48.250,    8.77,  738.56,  15.31
-          128,    64.250,    5.96, 1446.85,  22.52,     32.125,   46.51,  185.42,   5.77,    64.250,   11.66,  739.62,  11.51
-          192,    96.250,    8.90, 1451.22,  15.08,     48.125,   69.64,  185.50,   3.85,    96.250,   17.44,  740.59,   7.69
-          256,   128.250,   11.80, 1458.44,  11.37,     64.125,   92.77,  185.54,   2.89,   128.250,   23.23,  741.12,   5.78
-------------------------------------------------------------------------------------------------------------------------------
+Total GPU memory 8366784512, free 7941521408
+Buffer size:          256MB
+Trade-off type:       compute with global memory (block strided)
+Elements per thread:  8
+Thread fusion degree: 4
+----------------------------------------------------------------------------- CSV data -----------------------------------------------------------------------------
+Experiment ID, Single Precision ops,,,,              Double precision ops,,,,              Half precision ops,,,,                Integer operations,,, 
+Compute iters, Flops/byte, ex.time,  GFLOPS, GB/sec, Flops/byte, ex.time,  GFLOPS, GB/sec, Flops/byte, ex.time,  GFLOPS, GB/sec, Iops/byte, ex.time,   GIOPS, GB/sec
+            0,      0.250,    0.32,  104.42, 417.68,      0.125,    0.63,   53.04, 424.35,      0.500,    0.32,  211.41, 422.81,     0.250,    0.32,  105.58, 422.30
+            1,      0.750,    0.32,  316.34, 421.79,      0.375,    0.63,  158.69, 423.18,      1.500,    0.32,  634.22, 422.81,     0.750,    0.32,  317.30, 423.07
+            2,      1.250,    0.32,  528.46, 422.77,      0.625,    0.78,  215.91, 345.45,      2.500,    0.32, 1055.97, 422.39,     1.250,    0.32,  528.57, 422.86
+            3,      1.750,    0.32,  738.81, 422.17,      0.875,    1.08,  218.17, 249.34,      3.500,    0.32, 1478.95, 422.56,     1.750,    0.32,  740.59, 423.20
+            4,      2.250,    0.32,  951.33, 422.81,      1.125,    1.38,  219.57, 195.17,      4.500,    0.32, 1902.66, 422.81,     2.250,    0.32,  950.66, 422.51
+            5,      2.750,    0.32, 1162.74, 422.81,      1.375,    1.67,  220.38, 160.28,      5.500,    0.32, 2328.52, 423.37,     2.750,    0.32, 1162.74, 422.81
+            6,      3.250,    0.32, 1374.56, 422.94,      1.625,    1.97,  220.99, 135.99,      6.500,    0.32, 2756.62, 424.10,     3.250,    0.32, 1375.81, 423.32
+            7,      3.750,    0.32, 1592.45, 424.65,      1.875,    2.27,  221.38, 118.07,      7.500,    0.32, 3169.50, 422.60,     3.750,    0.32, 1585.55, 422.81
+            8,      4.250,    0.32, 1796.95, 422.81,      2.125,    2.57,  221.71, 104.33,      8.500,    0.32, 3587.76, 422.09,     4.250,    0.37, 1545.63, 363.68
+            9,      4.750,    0.32, 2006.34, 422.39,      2.375,    2.87,  221.85,  93.41,      9.500,    0.32, 3995.38, 420.57,     4.750,    0.32, 1998.29, 420.69
+           10,      5.250,    0.32, 2209.52, 420.86,      2.625,    3.17,  222.02,  84.58,     10.500,    0.32, 4439.54, 422.81,     5.250,    0.32, 2220.44, 422.94
+           11,      5.750,    0.32, 2434.12, 423.32,      2.875,    3.47,  222.17,  77.28,     11.500,    0.32, 4855.01, 422.17,     5.750,    0.32, 2426.77, 422.05
+           12,      6.250,    0.32, 2638.06, 422.09,      3.125,    3.78,  222.18,  71.10,     12.500,    0.32, 5227.20, 418.18,     6.250,    0.38, 2202.15, 352.34
+           13,      6.750,    0.32, 2841.95, 421.03,      3.375,    4.08,  222.30,  65.87,     13.500,    0.32, 5712.58, 423.15,     6.750,    0.32, 2850.54, 422.30
+           14,      7.250,    0.32, 3065.39, 422.81,      3.625,    4.37,  222.45,  61.36,     14.500,    0.32, 6135.74, 423.15,     7.250,    0.32, 3065.08, 422.77
+           15,      7.750,    0.33, 3143.40, 405.60,      3.875,    4.67,  222.57,  57.44,     15.500,    0.32, 6546.34, 422.34,     7.750,    0.32, 3268.89, 421.79
+           16,      8.250,    0.32, 3482.59, 422.13,      4.125,    4.98,  222.57,  53.96,     16.500,    0.32, 6957.48, 421.67,     8.250,    0.39, 2803.68, 339.84
+           17,      8.750,    0.32, 3693.66, 422.13,      4.375,    5.28,  222.53,  50.86,     17.500,    0.32, 7396.24, 422.64,     8.750,    0.32, 3694.77, 422.26
+           18,      9.250,    0.32, 3901.58, 421.79,      4.625,    5.58,  222.58,  48.12,     18.500,    0.32, 7786.72, 420.90,     9.250,    0.32, 3897.66, 421.37
+           20,     10.250,    0.32, 4312.53, 420.73,      5.125,    6.18,  222.66,  43.45,     20.500,    0.32, 8640.66, 421.50,    10.250,    0.41, 3374.54, 329.22
+           22,     11.250,    0.32, 4729.94, 420.44,      5.625,    6.78,  222.74,  39.60,     22.500,    0.32, 9452.31, 420.10,    11.250,    0.32, 4734.21, 420.82
+           24,     12.250,    0.32, 5148.83, 420.31,      6.125,    7.36,  223.51,  36.49,     24.500,    0.32,10346.40, 422.30,    12.250,    0.42, 3900.12, 318.38
+           28,     14.250,    0.32, 6009.94, 421.75,      7.125,    8.53,  224.23,  31.47,     28.500,    0.32,11975.32, 420.19,    14.250,    0.44, 4368.11, 306.53
+           32,     16.250,    0.32, 6795.36, 418.18,      8.125,    9.72,  224.31,  27.61,     32.500,    0.32,13605.64, 418.64,    16.250,    0.45, 4797.12, 295.21
+           40,     20.250,    0.34, 7899.43, 390.10,     10.125,   12.11,  224.50,  22.17,     40.500,    0.33,16371.37, 404.23,    20.250,    0.50, 5464.85, 269.87
+           48,     24.250,    0.41, 8029.04, 331.09,     12.125,   14.49,  224.58,  18.52,     48.500,    0.40,16468.89, 339.56,    24.250,    0.54, 5986.22, 246.85
+           56,     28.250,    0.47, 8114.58, 287.24,     14.125,   16.88,  224.65,  15.90,     56.500,    0.46,16443.12, 291.03,    28.250,    0.60, 6342.42, 224.51
+           64,     32.250,    0.53, 8154.47, 252.85,     16.125,   19.26,  224.72,  13.94,     64.500,    0.52,16536.22, 256.38,    32.250,    0.66, 6591.93, 204.40
+           80,     40.250,    0.66, 8242.80, 204.79,     20.125,   24.03,  224.79,  11.17,     80.500,    0.65,16644.88, 206.77,    40.250,    0.78, 6909.54, 171.67
+           96,     48.250,    0.78, 8321.35, 172.46,     24.125,   28.80,  224.85,   9.32,     96.500,    0.78,16685.23, 172.90,    48.250,    0.91, 7108.62, 147.33
+          128,     64.250,    1.03, 8337.22, 129.76,     32.125,   38.34,  224.91,   7.00,    128.500,    1.03,16775.65, 130.55,    64.250,    1.18, 7295.18, 113.54
+          192,     96.250,    1.54, 8414.49,  87.42,     48.125,   57.42,  224.97,   4.67,    192.500,    1.53,16847.93,  87.52,    96.250,    1.74, 7431.64,  77.21
+          256,    128.250,    2.06, 8362.01,  65.20,     64.125,   76.50,  225.02,   3.51,    256.500,    2.06,16693.65,  65.08,   128.250,    2.30, 7477.75,  58.31
+--------------------------------------------------------------------------------------------------------------------------------------------------------------------
 ```
 
-And here is a chart with illustrating data extracted by mixbench:
-![GTX-480 and GTX-660 execution results](http://users.uoa.gr/~ekondis/shared/mixbench-thumb.png "mixbench execution results on GTX-480 and GTX-660 (CUDA/ro implementation)")
+And here is a chart illustrating the results extracted above:
+![RTX-2070 execution results](https://raw.githubusercontent.com/ekondis/mixbench/gh-pages/img/rtx2070-sp-roofline.png "mixbench execution results on NVidia RTX-2070 (CUDA/ro implementation)")
 
 Publications
 --------------
