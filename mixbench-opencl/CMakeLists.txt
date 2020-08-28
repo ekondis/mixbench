@@ -5,6 +5,20 @@ find_package(OpenCL REQUIRED)
 
 include_directories(${OpenCL_INCLUDE_DIR} "../include")
 
+# Get version info from git tag
+execute_process(COMMAND git describe --tags --always
+                OUTPUT_VARIABLE GIT_REV
+                ERROR_QUIET)
+
+# Store version info
+if ("${GIT_REV}" STREQUAL "")
+    set(GIT_REV "")
+endif()
+string(STRIP "${GIT_REV}" GIT_REV)
+file(WRITE "version_info.h" "#define VERSION_INFO \"")
+file(APPEND "version_info.h" ${GIT_REV})
+file(APPEND "version_info.h" "\"")
+
 add_executable(mixbench-ocl-alt main-ocl.cpp mix_kernels_ocl.h loclutil.h mix_kernels_ocl.cpp mix_kernels_ocl.h loclutil.h)
 add_executable(mixbench-ocl-ro main-ocl.cpp mix_kernels_ocl.h loclutil.h mix_kernels_ocl_ro.cpp mix_kernels_ocl_ro.h loclutil.h)
 file(COPY ${CMAKE_CURRENT_SOURCE_DIR}/mix_kernels.cl
