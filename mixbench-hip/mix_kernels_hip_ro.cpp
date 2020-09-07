@@ -6,6 +6,7 @@
 
 #include <hip/hip_runtime.h>
 #include <hip/hip_fp16.h>
+#include <hip/hip_ext.h>
 #include <stdio.h>
 #ifdef __CUDACC__
 #include <math_constants.h>
@@ -61,15 +62,13 @@ __global__ void benchmark_func(T seed, T *g_data){
 		g_data[idx] = sum;
 }
 
-void initializeEvents(hipEvent_t *start, hipEvent_t *stop){
+void initializeEvents_ext(hipEvent_t *start, hipEvent_t *stop){
 	CUDA_SAFE_CALL( hipEventCreate(start) );
 	CUDA_SAFE_CALL( hipEventCreate(stop) );
-	CUDA_SAFE_CALL( hipEventRecord(*start, 0) );
 }
 
-float finalizeEvents(hipEvent_t start, hipEvent_t stop){
+float finalizeEvents_ext(hipEvent_t start, hipEvent_t stop){
 	CUDA_SAFE_CALL( hipGetLastError() );
-	CUDA_SAFE_CALL( hipEventRecord(stop, 0) );
 	CUDA_SAFE_CALL( hipEventSynchronize(stop) );
 	float kernel_time;
 	CUDA_SAFE_CALL( hipEventElapsedTime(&kernel_time, start, stop) );
@@ -103,22 +102,23 @@ void runbench(double *cd, long size){
 	dim3 dimGrid(TOTAL_BLOCKS, 1, 1);
 	hipEvent_t start, stop;
 
-	initializeEvents(&start, &stop);
-	hipLaunchKernelGGL(HIP_KERNEL_NAME(benchmark_func< float, BLOCK_SIZE, ELEMENTS_PER_THREAD, compute_iterations >), dim3(dimGrid), dim3(dimBlock ), 0, 0, 1.0f, (float*)cd);
-	float kernel_time_mad_sp = finalizeEvents(start, stop);
+	initializeEvents_ext(&start, &stop);
+	// hipExtLaunchKernelGGL is an extended API which adds event recording as a part of the API
+	hipExtLaunchKernelGGL(HIP_KERNEL_NAME(benchmark_func< float, BLOCK_SIZE, ELEMENTS_PER_THREAD, compute_iterations >), dim3(dimGrid), dim3(dimBlock ), 0, 0, start, stop, 0, 1.0f, (float*)cd);
+	float kernel_time_mad_sp = finalizeEvents_ext(start, stop);
 
-	initializeEvents(&start, &stop);
-	hipLaunchKernelGGL(HIP_KERNEL_NAME(benchmark_func< double, BLOCK_SIZE, ELEMENTS_PER_THREAD, compute_iterations >), dim3(dimGrid), dim3(dimBlock ), 0, 0, 1.0, cd);
-	float kernel_time_mad_dp = finalizeEvents(start, stop);
+	initializeEvents_ext(&start, &stop);
+	hipExtLaunchKernelGGL(HIP_KERNEL_NAME(benchmark_func< double, BLOCK_SIZE, ELEMENTS_PER_THREAD, compute_iterations >), dim3(dimGrid), dim3(dimBlock ), 0, 0, start, stop, 0, 1.0, cd);
+	float kernel_time_mad_dp = finalizeEvents_ext(start, stop);
 
-	initializeEvents(&start, &stop);
+	initializeEvents_ext(&start, &stop);
 	half2 h_ones(1.0f);
-	hipLaunchKernelGGL(HIP_KERNEL_NAME(benchmark_func< half2, BLOCK_SIZE, ELEMENTS_PER_THREAD, compute_iterations >), dim3(dimGrid), dim3(dimBlock ), 0, 0, h_ones, (half2*)cd);
-	float kernel_time_mad_hp = finalizeEvents(start, stop);
+	hipExtLaunchKernelGGL(HIP_KERNEL_NAME(benchmark_func< half2, BLOCK_SIZE, ELEMENTS_PER_THREAD, compute_iterations >), dim3(dimGrid), dim3(dimBlock ), 0, 0, start, stop, 0, h_ones, (half2*)cd);
+	float kernel_time_mad_hp = finalizeEvents_ext(start, stop);
 
-	initializeEvents(&start, &stop);
-	hipLaunchKernelGGL(HIP_KERNEL_NAME(benchmark_func< int, BLOCK_SIZE, ELEMENTS_PER_THREAD, compute_iterations >), dim3(dimGrid), dim3(dimBlock ), 0, 0, 1, (int*)cd);
-	float kernel_time_mad_int = finalizeEvents(start, stop);
+	initializeEvents_ext(&start, &stop);
+	hipExtLaunchKernelGGL(HIP_KERNEL_NAME(benchmark_func< int, BLOCK_SIZE, ELEMENTS_PER_THREAD, compute_iterations >), dim3(dimGrid), dim3(dimBlock ), 0, 0, start, stop, 0, 1, (int*)cd);
+	float kernel_time_mad_int = finalizeEvents_ext(start, stop);
 
 	printf("         %4d,   %8.3f,%8.2f,%8.2f,%7.2f,   %8.3f,%8.2f,%8.2f,%7.2f,   %8.3f,%8.2f,%8.2f,%7.2f,  %8.3f,%8.2f,%8.2f,%7.2f\n",
 		compute_iterations,
