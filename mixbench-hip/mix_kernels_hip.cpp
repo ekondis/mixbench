@@ -112,23 +112,6 @@ float finalizeEvents_ext(hipEvent_t start, hipEvent_t stop){
 	return kernel_time;
 }
 
-void initializeEvents(hipEvent_t *start, hipEvent_t *stop){
-	CUDA_SAFE_CALL( hipEventCreate(start) );
-	CUDA_SAFE_CALL( hipEventCreate(stop) );
-	CUDA_SAFE_CALL( hipEventRecord(*start, 0) );
-}
-
-float finalizeEvents(hipEvent_t start, hipEvent_t stop){
-	CUDA_SAFE_CALL( hipGetLastError() );
-	CUDA_SAFE_CALL( hipEventRecord(stop, 0) );
-	CUDA_SAFE_CALL( hipEventSynchronize(stop) );
-	float kernel_time;
-	CUDA_SAFE_CALL( hipEventElapsedTime(&kernel_time, start, stop) );
-	CUDA_SAFE_CALL( hipEventDestroy(start) );
-	CUDA_SAFE_CALL( hipEventDestroy(stop) );
-	return kernel_time;
-}
-
 void runbench_warmup(double *cd, long size){
 	const long reduced_grid_size = size/(UNROLLED_MEMORY_ACCESSES)/32;
 	const int BLOCK_SIZE = 256;
@@ -160,6 +143,7 @@ void runbench(double *cd, long size){
 	hipEvent_t start, stop;
 
 	initializeEvents_ext(&start, &stop);
+	// hipExtLaunchKernelGGL is an extended API which adds event recording as a part of the API
 	hipExtLaunchKernelGGL(HIP_KERNEL_NAME(benchmark_func< float, BLOCK_SIZE, memory_ratio >), dim3(dimGrid), dim3(dimBlock ), 0, 0, start, stop, 0, 1.0f, (float*)cd);
 	float kernel_time_mad_sp = finalizeEvents_ext(start, stop);
 
