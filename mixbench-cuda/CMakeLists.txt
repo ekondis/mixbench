@@ -23,7 +23,7 @@ file(APPEND "version_info.h" ${GIT_REV})
 file(APPEND "version_info.h" "\"")
 
 add_executable(mixbench-cuda-ro main-cuda.cpp mix_kernels_cuda.h lcutil.h version_info.h mix_kernels_cuda_ro.cu mix_kernels_cuda.h lcutil.h)
-add_executable(mixbench-cuda-alt main-cuda.cpp mix_kernels_cuda.h lcutil.h version_info.h mix_kernels_cuda_ro.cu mix_kernels_cuda.h lcutil.h)
+add_executable(mixbench-cuda-alt main-cuda.cpp mix_kernels_cuda.h lcutil.h version_info.h mix_kernels_cuda.cu mix_kernels_cuda.h lcutil.h)
 
 target_compile_definitions(mixbench-cuda-ro PRIVATE READONLY)
 
