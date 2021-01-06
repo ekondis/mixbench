@@ -1,5 +1,5 @@
 # mixbench
-The purpose of this benchmark tool is to evaluate performance bounds of GPUs on mixed operational intensity kernels. The executed kernel is customized on a range of different operational intensity values. Modern GPUs are able to hide memory latency by switching execution to threads able to perform compute operations. Using this tool one can assess the practical optimum balance in both types of operations for a GPU. CUDA, HIP and OpenCL implementations have been developed.
+The purpose of this benchmark tool is to evaluate performance bounds of GPUs on mixed operational intensity kernels. The executed kernel is customized on a range of different operational intensity values. Modern GPUs are able to hide memory latency by switching execution to threads able to perform compute operations. Using this tool one can assess the practical optimum balance in both types of operations for a GPU. CUDA, HIP, OpenCL and SYCL implementations have been developed.
 
 Kernel types
 --------------
@@ -11,7 +11,7 @@ Four types of experiments are executed combined with global memory accesses:
 3. Half precision Flops (multiply-additions)
 4. Integer multiply-addition operations
 
-Building program
+How to build
 --------------
 
 Building is based now on CMake files. Each implementation resides in a separate folder:
@@ -19,6 +19,7 @@ Building is based now on CMake files. Each implementation resides in a separate 
 * CUDA implementation: `mixbench-cuda`
 * OpenCL implementation: `mixbench-opencl`
 * HIP implementation: `mixbench-hip`
+* SYCL implementation: `mixbench-sycl`
 
 Thus, to build a particular implementation use the proper `CMakeLists.txt`, e.g. for the OpenCL implementation you may use the commands as follows:
 
@@ -42,7 +43,25 @@ https://github.com/RadeonOpenCompute/ROCm
 * HIP:  
 https://github.com/GPUOpen-ProfessionalCompute-Tools/HIP
 
-Two executables will be produced for each platform, i.e. "mixbench-cuda-alt" & "mixbench-cuda-ro", "mixbench-ocl-alt" & "mixbench-ocl-ro" and "mixbench-hip-alt" & "mixbench-hip-ro".
+For the SYCL version, some example cmake invocations follow depending on the underlying platform:
+
+* Intel clang/DPCPP (`per_kernel` mode facilitates cases where the device misses support for computations on a particular data type, e.g. double precision):
+```
+cmake ../ -D CMAKE_CXX_COMPILER=clang++ -D CMAKE_CXX_FLAGS="-fsycl -std=c++17 -fsycl-device-code-split=per_kernel"
+```
+
+* AMD ROCm (here building for two device architectures, *gfx803* & *gfx1012*):
+
+```
+cmake ../ -D CMAKE_CXX_COMPILER=syclcc -D CMAKE_CXX_FLAGS="--hipsycl-targets='omp;hip:gfx803,gfx1012' --rocm-device-lib-path=/opt/rocm/amdgcn/bitcode"
+```
+
+* NVidia clang/DPCPP
+```
+cmake ../ -D CMAKE_CXX_COMPILER=clang++ -D CMAKE_CXX_FLAGS="-fsycl -std=c++17 -fsycl-targets=nvptx64-nvidia-cuda-sycldevice"
+```
+
+Two executables will be produced for each platform, `mixbench-XXX-alt` & `mixbench-XXX-ro`.
 The first one (-alt) follows different design approach than the second one (-ro) so results typically sightly differ.
 The one that exhibits better performance is dependent on the underlying architecture and compiler characteristics.
 
@@ -112,6 +131,7 @@ Compute iters, Flops/byte, ex.time,  GFLOPS, GB/sec, Flops/byte, ex.time,  GFLOP
 ```
 
 And here is a chart illustrating the results extracted above:
+
 ![RTX-2070 execution results](https://raw.githubusercontent.com/ekondis/mixbench/gh-pages/img/rtx2070-sp-roofline.png "mixbench execution results on NVidia RTX-2070 (CUDA/ro implementation)")
 
 Publications
