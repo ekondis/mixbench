@@ -49,10 +49,10 @@ For the SYCL version, some example cmake invocations follow depending on the und
 ```
 cmake ../mixbench-sycl -D CMAKE_CXX_COMPILER=clang++ -D CMAKE_CXX_FLAGS="-fsycl -std=c++17 -fsycl-device-code-split=per_kernel"
 # or ...
-cmake ../ -D CMAKE_CXX_COMPILER=dpcpp -D CMAKE_CXX_FLAGS="-fsycl-device-code-split=per_kernel"
+cmake ../mixbench-sycl -D CMAKE_CXX_COMPILER=dpcpp -D CMAKE_CXX_FLAGS="-fsycl-device-code-split=per_kernel"
 ```
 
-* AMD ROCm-hipSYCL (here building for two device architectures, *gfx803* & *gfx1012*):
+* AMD hipSYCL under ROCm (here building for two device architectures, *gfx803* & *gfx1012*):
 
 ```
 cmake ../mixbench-sycl -D CMAKE_CXX_COMPILER=syclcc -D CMAKE_CXX_FLAGS="--hipsycl-targets='omp;hip:gfx803,gfx1012' --rocm-device-lib-path=/opt/rocm/amdgcn/bitcode"
