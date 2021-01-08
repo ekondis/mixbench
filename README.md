@@ -47,18 +47,20 @@ For the SYCL version, some example cmake invocations follow depending on the und
 
 * Intel clang/DPCPP (`per_kernel` mode facilitates cases where the device misses support for computations on a particular data type, e.g. double precision):
 ```
-cmake ../ -D CMAKE_CXX_COMPILER=clang++ -D CMAKE_CXX_FLAGS="-fsycl -std=c++17 -fsycl-device-code-split=per_kernel"
+cmake ../mixbench-sycl -D CMAKE_CXX_COMPILER=clang++ -D CMAKE_CXX_FLAGS="-fsycl -std=c++17 -fsycl-device-code-split=per_kernel"
+# or ...
+cmake ../ -D CMAKE_CXX_COMPILER=dpcpp -D CMAKE_CXX_FLAGS="-fsycl-device-code-split=per_kernel"
 ```
 
-* AMD ROCm (here building for two device architectures, *gfx803* & *gfx1012*):
+* AMD ROCm-hipSYCL (here building for two device architectures, *gfx803* & *gfx1012*):
 
 ```
-cmake ../ -D CMAKE_CXX_COMPILER=syclcc -D CMAKE_CXX_FLAGS="--hipsycl-targets='omp;hip:gfx803,gfx1012' --rocm-device-lib-path=/opt/rocm/amdgcn/bitcode"
+cmake ../mixbench-sycl -D CMAKE_CXX_COMPILER=syclcc -D CMAKE_CXX_FLAGS="--hipsycl-targets='omp;hip:gfx803,gfx1012' --rocm-device-lib-path=/opt/rocm/amdgcn/bitcode"
 ```
 
 * NVidia clang/DPCPP
 ```
-cmake ../ -D CMAKE_CXX_COMPILER=clang++ -D CMAKE_CXX_FLAGS="-fsycl -std=c++17 -fsycl-targets=nvptx64-nvidia-cuda-sycldevice"
+cmake ../mixbench-sycl -D CMAKE_CXX_COMPILER=clang++ -D CMAKE_CXX_FLAGS="-fsycl -std=c++17 -fsycl-targets=nvptx64-nvidia-cuda-sycldevice"
 ```
 
 Two executables will be produced for each platform, `mixbench-XXX-alt` & `mixbench-XXX-ro`.
