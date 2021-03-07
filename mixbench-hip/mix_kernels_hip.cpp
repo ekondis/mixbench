@@ -139,7 +139,7 @@ void runbench(double *cd, long size){
 	const long long memoryoperations = (long long)(COMP_ITERATIONS)*compute_grid_size;
 
 	dim3 dimBlock(BLOCK_SIZE, 1, 1);
-    dim3 dimGrid(TOTAL_BLOCKS, 1, 1);
+	dim3 dimGrid(TOTAL_BLOCKS, 1, 1);
 	hipEvent_t start, stop;
 
 	initializeEvents_ext(&start, &stop);
