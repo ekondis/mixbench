@@ -19,8 +19,7 @@ namespace sycl = cl::sycl;
 #define UNROLLED_MEMORY_ACCESSES (UNROLL_ITERATIONS/2)
 
 #ifdef __HIPSYCL__
-using half2 = sycl::vec<sycl::detail::hp_float, 2>;
-using half = sycl::detail::hp_float;
+#include <hip/hip_fp16.h>
 #else
 using half2 = sycl::half2;
 using half = sycl::half;
@@ -41,6 +40,17 @@ struct MADOperator<T, typename std::enable_if_t<sycl::detail::is_genfloat<T>::va
         return sycl::mad(a, b, c);
     }
 };
+#else
+#ifdef SYCL_DEVICE_ONLY
+// Packed half precision operation support via ROCm
+//
+template <>
+struct MADOperator<half2, void> {
+    half2 operator()(half2 a, half2 b, half2 c) {
+        return __hfma2(a, b, c);
+    }
+};
+#endif
 #endif
 
 template <typename T>
@@ -53,7 +63,11 @@ struct EqualOperator {
 template <>
 struct EqualOperator<half2> {
     bool operator()(half2 a, half2 b) {
-        return a[0] == b[0] && a[1] == b[1];  //__hbeq2(a, b);
+#ifdef __HIPSYCL__
+        return __hbeq2(a, b);
+#else
+        return a[0] == b[0] && a[1] == b[1];
+#endif
     }
 };
 
