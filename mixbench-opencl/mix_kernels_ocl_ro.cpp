@@ -331,4 +331,6 @@ extern "C" void mixbenchGPU(cl_device_id dev_id, double *c, long size, bool bloc
 
 	// Release buffer
 	OCL_SAFE_CALL( clReleaseMemObject(c_buffer) );
+	OCL_SAFE_CALL( clReleaseCommandQueue(cmd_queue) );
+	OCL_SAFE_CALL( clReleaseContext(context) );
 }
