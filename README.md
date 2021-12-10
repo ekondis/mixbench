@@ -51,16 +51,21 @@ cmake ../mixbench-sycl -D CMAKE_CXX_COMPILER=clang++ -D CMAKE_CXX_FLAGS="-fsycl 
 # or ...
 cmake ../mixbench-sycl -D CMAKE_CXX_COMPILER=dpcpp -D CMAKE_CXX_FLAGS="-fsycl-device-code-split=per_kernel"
 ```
+If you are building under Windows/DPC++ try:
+```
+cmake ..\mixbench-sycl -T "Intel(R) oneAPI DPC++ Compiler"  -D CMAKE_CXX_COMPILER=dpcpp -D CMAKE_CXX_FLAGS="-fsycl-device-code-split=per_kernel /EHsc"
+```
 
 * AMD hipSYCL under ROCm (here building for two device architectures, *gfx803* & *gfx1012*):
 
 ```
-cmake ../mixbench-sycl -D CMAKE_CXX_COMPILER=syclcc -D CMAKE_CXX_FLAGS="--hipsycl-targets='omp;hip:gfx803,gfx1012' --rocm-device-lib-path=/opt/rocm/amdgcn/bitcode"
+cmake ../mixbench-sycl -D CMAKE_CXX_COMPILER=syclcc -D CMAKE_CXX_FLAGS="--hipsycl-targets='omp;hip:gfx803,gfx1012' -O2"
+# on older ROCm releases you may need to add "--rocm-device-lib-path=/opt/rocm/amdgcn/bitcode" to CMAKE_CXX_FLAGS
 ```
 
 * NVidia clang/DPCPP
 ```
-cmake ../mixbench-sycl -D CMAKE_CXX_COMPILER=clang++ -D CMAKE_CXX_FLAGS="-fsycl -std=c++17 -fsycl-targets=nvptx64-nvidia-cuda-sycldevice"
+cmake ../mixbench-sycl -D CMAKE_CXX_COMPILER=clang++ -D CMAKE_CXX_FLAGS="-fsycl -std=c++17 -fsycl-targets=nvptx64-nvidia-cuda"
 ```
 
 Two executables will be produced for each platform, `mixbench-XXX-alt` & `mixbench-XXX-ro`.
