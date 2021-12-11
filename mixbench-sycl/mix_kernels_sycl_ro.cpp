@@ -312,12 +312,12 @@ void mixbenchGPU(const sycl::device &dev, double *c, long size, bool use_os_time
     std::cout << "Timer:                " << (use_os_timer ? "OS based" : "SYCL event based") << std::endl;
 
 #ifndef __HIPSYCL__
-    const bool doHalfs = dev.has_extension("cl_khr_fp16");
+    const bool doHalfs = dev.has(sycl::aspect::fp16);
     if (!doHalfs) {
         std::cout << "Warning:              Half precision computations are not supported" << std::endl;
     }
 
-    const bool doDoubles = dev.has_extension("cl_khr_fp64");
+    const bool doDoubles = dev.has(sycl::aspect::fp64);
     if (!doDoubles) {
         std::cout << "Warning:              Double precision computations are not supported" << std::endl;
     }
