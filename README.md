@@ -1,7 +1,13 @@
 # mixbench
 The purpose of this benchmark tool is to evaluate performance bounds of GPUs on mixed operational intensity kernels. The executed kernel is customized on a range of different operational intensity values. Modern GPUs are able to hide memory latency by switching execution to threads able to perform compute operations. Using this tool one can assess the practical optimum balance in both types of operations for a GPU. CUDA, HIP, OpenCL and SYCL implementations have been developed.
 
-Kernel types
+Two executables will be produced for each platform:
+* `mixbench-XXX-ro`: Consider this as the primary implementation.
+* `mixbench-XXX-alt`: Deprecated - Follows a different design approach than the former so results typically slightly differ. It is susceptible to caching effects.
+
+The one that exhibits better performance is dependent on the underlying architecture and compiler characteristics.
+
+## Kernel types
 --------------
 
 Four types of experiments are executed combined with global memory accesses:
@@ -11,7 +17,7 @@ Four types of experiments are executed combined with global memory accesses:
 3. Half precision Flops (multiply-additions)
 4. Integer multiply-addition operations
 
-How to build
+## How to build
 --------------
 
 Building is based now on CMake files. Each implementation resides in a separate folder:
@@ -45,34 +51,36 @@ https://github.com/GPUOpen-ProfessionalCompute-Tools/HIP
 
 For the SYCL version, some example cmake invocations follow depending on the underlying platform:
 
-* Intel clang/DPCPP (`per_kernel` mode facilitates cases where the device misses support for computations on a particular data type, e.g. double precision):
+### Intel clang/DPCPP
+
 ```
 cmake ../mixbench-sycl -D CMAKE_CXX_COMPILER=clang++ -D CMAKE_CXX_FLAGS="-fsycl -std=c++17 -fsycl-device-code-split=per_kernel"
 # or ...
 cmake ../mixbench-sycl -D CMAKE_CXX_COMPILER=dpcpp -D CMAKE_CXX_FLAGS="-fsycl-device-code-split=per_kernel"
 ```
+Note: `per_kernel` mode facilitates cases where the device lacks support for computations on a particular data type, e.g. double precision.
+
 If you are building under Windows/DPC++ try:
 ```
 cmake ..\mixbench-sycl -T "Intel(R) oneAPI DPC++ Compiler"  -D CMAKE_CXX_COMPILER=dpcpp -D CMAKE_CXX_FLAGS="-fsycl-device-code-split=per_kernel /EHsc"
 ```
+Note: Adjust the platform toolset argument (*"Intel(R) oneAPI DPC++ Compiler"*) to whatever required, e.g. *"Intel(R) oneAPI DPC++ Compiler 2022"* for DPC++ 2022.1.
 
-* AMD hipSYCL under ROCm (here building for two device architectures, *gfx803* & *gfx1012*):
+### AMD hipSYCL under ROCm
+
+Here building for two device architectures, *gfx803* & *gfx1012*):
 
 ```
 cmake ../mixbench-sycl -D CMAKE_CXX_COMPILER=syclcc -D CMAKE_CXX_FLAGS="--hipsycl-targets='omp;hip:gfx803,gfx1012' -O2"
-# on older ROCm releases you may need to add "--rocm-device-lib-path=/opt/rocm/amdgcn/bitcode" to CMAKE_CXX_FLAGS
 ```
+Note: Older ROCm releases might require adding `--rocm-device-lib-path=/opt/rocm/amdgcn/bitcode` to CMAKE_CXX_FLAGS
 
-* NVidia clang/DPCPP
+### NVidia clang/DPCPP
 ```
 cmake ../mixbench-sycl -D CMAKE_CXX_COMPILER=clang++ -D CMAKE_CXX_FLAGS="-fsycl -std=c++17 -fsycl-targets=nvptx64-nvidia-cuda"
 ```
 
-Two executables will be produced for each platform, `mixbench-XXX-alt` & `mixbench-XXX-ro`.
-The first one (-alt) follows different design approach than the second one (-ro) so results typically sightly differ.
-The one that exhibits better performance is dependent on the underlying architecture and compiler characteristics.
-
-Execution results
+## Execution results
 --------------
 
 A typical execution output on an NVidia RTX-2070 GPU is:
@@ -141,7 +149,7 @@ And here is a chart illustrating the results extracted above:
 
 ![RTX-2070 execution results](https://raw.githubusercontent.com/ekondis/mixbench/gh-pages/img/rtx2070-sp-roofline.png "mixbench execution results on NVidia RTX-2070 (CUDA/ro implementation)")
 
-Publications
+## Publications
 --------------
 
 If you use this benchmark tool for a research work please provide citation to any of the following papers:
