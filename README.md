@@ -8,7 +8,6 @@ Two executables will be produced for each platform:
 The one that exhibits better performance is dependent on the underlying architecture and compiler characteristics.
 
 ## Kernel types
---------------
 
 Four types of experiments are executed combined with global memory accesses:
 
@@ -18,7 +17,6 @@ Four types of experiments are executed combined with global memory accesses:
 4. Integer multiply-addition operations
 
 ## How to build
---------------
 
 Building is based now on CMake files. Each implementation resides in a separate folder:
 
@@ -68,7 +66,7 @@ Note: Adjust the platform toolset argument (*"Intel(R) oneAPI DPC++ Compiler"*) 
 
 ### AMD hipSYCL under ROCm
 
-Here building for two device architectures, *gfx803* & *gfx1012*):
+Here building for two device architectures (*gfx803* & *gfx1012*):
 
 ```
 cmake ../mixbench-sycl -D CMAKE_CXX_COMPILER=syclcc -D CMAKE_CXX_FLAGS="--hipsycl-targets='omp;hip:gfx803,gfx1012' -O2"
@@ -81,7 +79,6 @@ cmake ../mixbench-sycl -D CMAKE_CXX_COMPILER=clang++ -D CMAKE_CXX_FLAGS="-fsycl 
 ```
 
 ## Execution results
---------------
 
 A typical execution output on an NVidia RTX-2070 GPU is:
 ```
@@ -150,7 +147,6 @@ And here is a chart illustrating the results extracted above:
 ![RTX-2070 execution results](https://raw.githubusercontent.com/ekondis/mixbench/gh-pages/img/rtx2070-sp-roofline.png "mixbench execution results on NVidia RTX-2070 (CUDA/ro implementation)")
 
 ## Publications
---------------
 
 If you use this benchmark tool for a research work please provide citation to any of the following papers:
 
