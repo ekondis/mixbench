@@ -103,9 +103,12 @@ void runbench(double *cd, long size){
 	hipEvent_t start, stop;
 
 	initializeEvents_ext(&start, &stop);
-	// hipExtLaunchKernelGGL is an extended API which adds event recording as a part of the API
 	hipExtLaunchKernelGGL(HIP_KERNEL_NAME(benchmark_func< float, BLOCK_SIZE, ELEMENTS_PER_THREAD, compute_iterations >), dim3(dimGrid), dim3(dimBlock ), 0, 0, start, stop, 0, 1.0f, (float*)cd);
 	float kernel_time_mad_sp = finalizeEvents_ext(start, stop);
+
+	initializeEvents_ext(&start, &stop);
+	hipExtLaunchKernelGGL(HIP_KERNEL_NAME(benchmark_func< float2, BLOCK_SIZE, ELEMENTS_PER_THREAD, compute_iterations >), dim3(dimGrid), dim3(dimBlock ), 0, 0, start, stop, 0, float2{1.0f}, (float2*)cd);
+	float kernel_time_mad_sp2 = finalizeEvents_ext(start, stop);
 
 	initializeEvents_ext(&start, &stop);
 	hipExtLaunchKernelGGL(HIP_KERNEL_NAME(benchmark_func< double, BLOCK_SIZE, ELEMENTS_PER_THREAD, compute_iterations >), dim3(dimGrid), dim3(dimBlock ), 0, 0, start, stop, 0, 1.0, cd);
@@ -120,20 +123,29 @@ void runbench(double *cd, long size){
 	hipExtLaunchKernelGGL(HIP_KERNEL_NAME(benchmark_func< int, BLOCK_SIZE, ELEMENTS_PER_THREAD, compute_iterations >), dim3(dimGrid), dim3(dimBlock ), 0, 0, start, stop, 0, 1, (int*)cd);
 	float kernel_time_mad_int = finalizeEvents_ext(start, stop);
 
-	printf("         %4d,   %8.3f,%8.2f,%8.2f,%7.2f,   %8.3f,%8.2f,%8.2f,%7.2f,   %8.3f,%8.2f,%8.2f,%7.2f,  %8.3f,%8.2f,%8.2f,%7.2f\n",
+	printf("         %4d,   %8.3f,%8.2f,%8.2f,%7.2f,   %8.3f,%8.2f,%8.2f,%7.2f,   %8.3f,%8.2f,%8.2f,%7.2f,   %8.3f,%8.2f,%8.2f,%7.2f,  %8.3f,%8.2f,%8.2f,%7.2f\n",
 		compute_iterations,
+		// SP
 		((double)computations)/((double)memoryoperations*sizeof(float)),
 		kernel_time_mad_sp,
 		((double)computations)/kernel_time_mad_sp*1000./(double)(1000*1000*1000),
 		((double)memoryoperations*sizeof(float))/kernel_time_mad_sp*1000./(1000.*1000.*1000.),
+		// Packed SP
+		((double)2*computations)/((double)memoryoperations*sizeof(float2)),
+		kernel_time_mad_sp2,
+		((double)2*computations)/kernel_time_mad_sp2*1000./(double)(1000*1000*1000),
+		((double)memoryoperations*sizeof(float2))/kernel_time_mad_sp2*1000./(1000.*1000.*1000.),
+		// DP
 		((double)computations)/((double)memoryoperations*sizeof(double)),
 		kernel_time_mad_dp,
 		((double)computations)/kernel_time_mad_dp*1000./(double)(1000*1000*1000),
 		((double)memoryoperations*sizeof(double))/kernel_time_mad_dp*1000./(1000.*1000.*1000.),
+		// Packed HP
 		((double)2*computations)/((double)memoryoperations*sizeof(half2)),
 		kernel_time_mad_hp,
 		((double)2*computations)/kernel_time_mad_hp*1000./(double)(1000*1000*1000),
 		((double)memoryoperations*sizeof(half2))/kernel_time_mad_hp*1000./(1000.*1000.*1000.),
+		// Int
 		((double)computations)/((double)memoryoperations*sizeof(int)),
 		kernel_time_mad_int,
 		((double)computations)/kernel_time_mad_int*1000./(double)(1000*1000*1000),
@@ -156,9 +168,9 @@ extern "C" void mixbenchGPU(double *c, long size){
 	// Synchronize in order to wait for memory operations to finish
 	CUDA_SAFE_CALL( hipDeviceSynchronize() );
 
-	printf("----------------------------------------------------------------------------- CSV data -----------------------------------------------------------------------------\n");
-	printf("Experiment ID, Single Precision ops,,,,              Double precision ops,,,,              Half precision ops,,,,                Integer operations,,, \n");
-	printf("Compute iters, Flops/byte, ex.time,  GFLOPS, GB/sec, Flops/byte, ex.time,  GFLOPS, GB/sec, Flops/byte, ex.time,  GFLOPS, GB/sec, Iops/byte, ex.time,   GIOPS, GB/sec\n");
+	printf("----------------------------------------------------------------------------- CSV data -------------------------------------------------------------------------------------------------------------------\n");
+	printf("Experiment ID, Single Precision ops,,,,              Packed Single Precision ops,,,,       Double precision ops,,,,              Half precision ops,,,,                Integer operations,,, \n");
+	printf("Compute iters, Flops/byte, ex.time,  GFLOPS, GB/sec, Flops/byte, ex.time,  GFLOPS, GB/sec, Flops/byte, ex.time,  GFLOPS, GB/sec, Flops/byte, ex.time,  GFLOPS, GB/sec, Iops/byte, ex.time,   GIOPS, GB/sec\n");
 
 	runbench_warmup(cd, size);
 
@@ -196,7 +208,7 @@ extern "C" void mixbenchGPU(double *c, long size){
 	runbench<256>(cd, size);
 	runbench<512>(cd, size);
 
-	printf("--------------------------------------------------------------------------------------------------------------------------------------------------------------------\n");
+	printf("----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------\n");
 
 	// Copy results back to host memory
 	CUDA_SAFE_CALL( hipMemcpy(c, cd, size*sizeof(double), hipMemcpyDeviceToHost) );
