@@ -35,9 +35,14 @@ mixbench-hip-alt
 mixbench-hip-ro
 mixbench-ocl-alt
 mixbench-ocl-ro
+mixbench-sycl-alt
+mixbench-sycl-ro
 
 # Debug files
 *.dSYM/
+
+# Build folders
+build/
 
 # Other
 version_info.h
