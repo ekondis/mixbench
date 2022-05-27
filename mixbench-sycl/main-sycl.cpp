@@ -67,11 +67,12 @@ int main(int argc, char* argv[]) {
 
     ArgParams args{1, false, 256, DEF_VECTOR_SIZE/(1024*1024)};
 
-    if( !argument_parsing(argc, argv, &args) ){
-        std::cout << "Usage: mixbench-sycl [options] [device index [workgroup size [array size(1024^2)]]]" << std::endl <<
-        std::endl << "Options:" <<
-        std::endl << "  -h or --help              Show this message" <<
-        std::endl << "  -t or --use-os-timer      Use standard OS timer instead of OpenCL profiling timer" << std::endl;
+    if (!argument_parsing(argc, argv, &args)) {
+        std::cout << "Usage: mixbench-sycl [options] [device index [workgroup size [array size(1024^2)]]]" << std::endl
+                  << std::endl
+                  << "Options:" << std::endl
+                  << "  -h or --help              Show this message" << std::endl
+                  << "  -t or --use-os-timer      Use standard OS timer instead of SYCL profiling timer" << std::endl;
 
         auto devices = sycl::device::get_devices();
         std::cout << "Available SYCL devices:" << std::endl;

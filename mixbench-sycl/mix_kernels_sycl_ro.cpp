@@ -144,14 +144,10 @@ double finalizeEvents(bool use_host_timer, sycl::event ev_krn_execution, const t
         const time_point tp_stop_compute = std::chrono::high_resolution_clock::now();
         return std::chrono::duration<float, std::milli>(tp_stop_compute - tp_start_compute).count();
     } else {
-#ifndef __HIPSYCL__
         // Disabled for hipSYCL: error: no matching member function for call to 'get_profiling_info'
         return (ev_krn_execution.get_profiling_info<sycl::info::event_profiling::command_end>() -
                 ev_krn_execution.get_profiling_info<sycl::info::event_profiling::command_start>()) /
                1000000.0;
-#else
-        return -1.0;
-#endif
     }
 }
 
@@ -295,17 +291,8 @@ void runbench_range(sycl::queue &queue, double *cd, long size, bool doHalfs, boo
 }
 
 void mixbenchGPU(const sycl::device &dev, double *c, long size, bool use_os_timer, size_t workgroupsize) {
-#ifndef __HIPSYCL__
     const sycl::property_list queue_prop_list = use_os_timer ? sycl::property_list{} : sycl::property_list{sycl::property::queue::enable_profiling()};
     sycl::queue queue{dev, queue_prop_list};
-#else
-    sycl::queue queue{dev};
-#endif
-
-#ifdef __HIPSYCL__
-    use_os_timer = true;  // force OS timer on hipSYCL
-    std::cout << "Warning:              Running under hipSYCL. SYCL profiling not supported" << std::endl;
-#endif
 
     std::cout << "Elements per thread:  " << ELEMENTS_PER_THREAD << std::endl;
     std::cout << "Thread fusion degree: " << FUSION_DEGREE << std::endl;
