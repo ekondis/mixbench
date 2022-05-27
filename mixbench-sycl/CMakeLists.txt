@@ -30,4 +30,7 @@ file(APPEND "version_info.h" "\"")
 add_executable(mixbench-sycl-ro main-sycl.cpp lsyclutil.h mix_kernels_sycl_ro.cpp)
 add_executable(mixbench-sycl-alt main-sycl.cpp lsyclutil.h mix_kernels_sycl_alt.cpp)
 
+set_target_properties(mixbench-sycl-ro PROPERTIES CXX_EXTENSIONS OFF)
+set_target_properties(mixbench-sycl-alt PROPERTIES CXX_EXTENSIONS OFF)
+
 target_compile_definitions(mixbench-sycl-ro PRIVATE READONLY)
