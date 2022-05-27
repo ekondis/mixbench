@@ -110,11 +110,11 @@ void benchmark_func(T seed, T *g_data, sycl::nd_item<1> item_ct1) {
     FromIntOperator<T> from_int_op;
     T tmps[granularity];
     for (int k = 0; k < fusion_degree; k++) {
-        //#pragma unroll
+#pragma unroll
         for (int j = 0; j < granularity; j++) {
             // Load elements (memory intensive part)
             tmps[j] = g_data[idx + j * stride + k * big_stride];
-            #pragma unroll
+            // Perform computations (compute intensive part)
             for (int i = 0; i < compute_iterations; i++) {
                 tmps[j] = mad_op(tmps[j], tmps[j], seed);
             }
