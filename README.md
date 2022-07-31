@@ -1,12 +1,6 @@
 # mixbench
 The purpose of this benchmark tool is to evaluate performance bounds of GPUs on mixed operational intensity kernels. The executed kernel is customized on a range of different operational intensity values. Modern GPUs are able to hide memory latency by switching execution to threads able to perform compute operations. Using this tool one can assess the practical optimum balance in both types of operations for a GPU. CUDA, HIP, OpenCL and SYCL implementations have been developed.
 
-Two executables will be produced for each platform:
-* `mixbench-XXX-ro`: Consider this as the primary implementation.
-* `mixbench-XXX-alt`: Deprecated - Follows a different design approach than the former so results typically slightly differ. It is susceptible to caching effects.
-
-The one that exhibits better performance is dependent on the underlying architecture and compiler characteristics.
-
 ## Kernel types
 
 Four types of experiments are executed combined with global memory accesses:

@@ -10,11 +10,7 @@
 #include "mix_kernels_sycl.h"
 #include "version_info.h"
 
-#ifdef READONLY
 #define DEF_VECTOR_SIZE (32*1024*1024)
-#else
-#define DEF_VECTOR_SIZE (8*1024*1024)
-#endif
 
 typedef struct{
     int device_index;
@@ -59,11 +55,7 @@ bool argument_parsing(int argc, char* argv[], ArgParams *output){
 }
 
 int main(int argc, char* argv[]) {
-#ifdef READONLY
-    std::cout << "mixbench-sycl/read-only (" << VERSION_INFO << ")" << std::endl;
-#else
-    std::cout << "mixbench-sycl/alternating (" << VERSION_INFO << ")" << std::endl;
-#endif
+    std::cout << "mixbench-sycl (" << VERSION_INFO << ")" << std::endl;
 
     ArgParams args{1, false, 256, DEF_VECTOR_SIZE/(1024*1024)};
 

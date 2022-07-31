@@ -13,35 +13,27 @@
 #include "mix_kernels_cuda.h"
 #include "version_info.h"
 
-#ifdef READONLY
-#define VECTOR_SIZE (32*1024*1024)
-#else
-#define VECTOR_SIZE (8*1024*1024)
-#endif
+#define VECTOR_SIZE (32 * 1024 * 1024)
 
 int main(int argc, char* argv[]) {
-#ifdef READONLY
-	printf("mixbench/read-only (%s)\n", VERSION_INFO);
-#else
-	printf("mixbench/alternating (%s)\n", VERSION_INFO);
-#endif
+    printf("mixbench (%s)\n", VERSION_INFO);
 
-	unsigned int datasize = VECTOR_SIZE*sizeof(double);
+    unsigned int datasize = VECTOR_SIZE * sizeof(double);
 
-	cudaSetDevice(0);
-	StoreDeviceInfo(stdout);
+    cudaSetDevice(0);
+    StoreDeviceInfo(stdout);
 
-	size_t freeCUDAMem, totalCUDAMem;
-	cudaMemGetInfo(&freeCUDAMem, &totalCUDAMem);
-	printf("Total GPU memory %lu, free %lu\n", totalCUDAMem, freeCUDAMem);
-	printf("Buffer size:          %dMB\n", datasize/(1024*1024));
-	
-	double *c;
-	c = (double*)malloc(datasize);
+    size_t freeCUDAMem, totalCUDAMem;
+    cudaMemGetInfo(&freeCUDAMem, &totalCUDAMem);
+    printf("Total GPU memory %lu, free %lu\n", totalCUDAMem, freeCUDAMem);
+    printf("Buffer size:          %dMB\n", datasize / (1024 * 1024));
 
-	mixbenchGPU(c, VECTOR_SIZE);
+    double* c;
+    c = (double*)malloc(datasize);
 
-	free(c);
+    mixbenchGPU(c, VECTOR_SIZE);
 
-	return 0;
+    free(c);
+
+    return 0;
 }

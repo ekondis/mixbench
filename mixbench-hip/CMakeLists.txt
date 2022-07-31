@@ -31,12 +31,8 @@ file(WRITE "version_info.h" "#define VERSION_INFO \"")
 file(APPEND "version_info.h" ${GIT_REV})
 file(APPEND "version_info.h" "\"")
 
-set(ALT_SOURCE_FILES main-hip.cpp mix_kernels_hip.cpp)
-set(RO_SOURCE_FILES main-hip-ro.cpp mix_kernels_hip_ro.cpp)
+set(BENCH_SOURCE_FILES main-hip.cpp mix_kernels_hip.cpp)
 
-set_source_files_properties(${ALT_SOURCE_FILES} PROPERTIES HIP_SOURCE_PROPERTY_FORMAT 1)
-set_source_files_properties(${RO_SOURCE_FILES} PROPERTIES HIP_SOURCE_PROPERTY_FORMAT 1)
+set_source_files_properties(${BENCH_SOURCE_FILES} PROPERTIES HIP_SOURCE_PROPERTY_FORMAT 1)
 
-hip_add_executable(mixbench-hip-alt ${ALT_SOURCE_FILES})
-hip_add_executable(mixbench-hip-ro ${RO_SOURCE_FILES})
-
+hip_add_executable(mixbench-hip ${BENCH_SOURCE_FILES})

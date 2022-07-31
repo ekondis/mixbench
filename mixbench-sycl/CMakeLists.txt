@@ -27,10 +27,6 @@ file(WRITE "version_info.h" "#define VERSION_INFO \"")
 file(APPEND "version_info.h" ${GIT_REV})
 file(APPEND "version_info.h" "\"")
 
-add_executable(mixbench-sycl-ro main-sycl.cpp lsyclutil.h mix_kernels_sycl_ro.cpp)
-add_executable(mixbench-sycl-alt main-sycl.cpp lsyclutil.h mix_kernels_sycl_alt.cpp)
+add_executable(mixbench-sycl-ro main-sycl.cpp lsyclutil.h mix_kernels_sycl.cpp)
 
 set_target_properties(mixbench-sycl-ro PROPERTIES CXX_EXTENSIONS OFF)
-set_target_properties(mixbench-sycl-alt PROPERTIES CXX_EXTENSIONS OFF)
-
-target_compile_definitions(mixbench-sycl-ro PRIVATE READONLY)
