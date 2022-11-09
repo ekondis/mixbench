@@ -72,8 +72,6 @@ int main(int argc, char *argv[]) {
 
   std::cout << "Total threads: " << hardware_concurrency << std::endl;
 
-  for (size_t i = 0; i < VEC_WIDTH; i++) c[i] = 0.0;
-
   mixbenchCPU(c.get(), VEC_WIDTH);
 
   return 0;

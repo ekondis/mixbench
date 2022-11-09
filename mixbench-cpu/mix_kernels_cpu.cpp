@@ -133,72 +133,101 @@ auto measure_operation(Op op) {
          1000.;
 }
 
+class ComputeSpace {
+  size_t memory_space_{0};
+  int compute_iterations_{0};
+
+ public:
+  ComputeSpace(size_t memory_space, int compute_iterations)
+      : memory_space_{memory_space}, compute_iterations_{compute_iterations} {}
+
+  template <typename T>
+  size_t compute_ops() const {
+    const auto total_elements = element_count<T>();
+    const long long computations =
+        total_elements            /* Vector length */
+            * compute_iterations_ /* Core loop iteration count */
+            * 2                   /* Flops per core loop iteration */
+            * 1                   /* FMAs in the inner most loop */
+        + total_elements - 1      /* Due to sum reduction */
+        ;
+    return computations;
+  }
+
+  size_t memory_traffic() const { return memory_space_; }
+
+  template <typename T>
+  size_t element_count() const {
+    return memory_space_ / sizeof(T);
+  }
+};
+
 template <unsigned int compute_iterations>
 void runbench(double *c, size_t size) {
+  ComputeSpace cs{size * sizeof(double), compute_iterations};
+
   // floating point part (single prec)
   auto kernel_time_mad_sp = benchmark([&] {
     return measure_operation([&] {
-      bench<float, compute_iterations>(size, 1.f, -1.f,
+      bench<float, compute_iterations>(cs.element_count<float>(), 1.f, -1.f,
                                        reinterpret_cast<float *>(c));
     });
   });
 
   // floating point part (double prec)
   auto kernel_time_mad_dp = benchmark([&] {
-    return measure_operation(
-        [&] { bench<double, compute_iterations>(size, 1., -1., c); });
+    return measure_operation([&] {
+      bench<double, compute_iterations>(cs.element_count<double>(), 1., -1., c);
+    });
   });
 
   // integer part
   auto kernel_time_mad_int = benchmark([&] {
     return measure_operation([&] {
-      bench<int, compute_iterations>(size * sizeof(double) / sizeof(int), 1, -1,
+      bench<int, compute_iterations>(cs.element_count<int>(), 1, -1,
                                      reinterpret_cast<int *>(c));
     });
   });
 
-  const long long computations =
-      size                     /* Vector length */
-          * compute_iterations /* Core loop iteration count */
-          * 2                  /* Flops per core loop iteration */
-          * 1                  /* FMAs in the inner most loop */
-      + size - 1               /* Due to sum reduction */
-      ;
-  const long long memoryoperations = size;
+  const auto computations_sp = cs.compute_ops<float>();
+  const auto computations_dp = cs.compute_ops<double>();
+  const auto computations_int = cs.compute_ops<int>();
+  const auto memory_traffic = cs.memory_traffic();
 
   const auto setw = std::setw;
   const auto setprecision = std::setprecision;
   std::cout << std::fixed << "         " << std::setw(4) << compute_iterations
             << ",   " << setw(8) << setprecision(3)
-            << ((double)computations) /
-                   ((double)memoryoperations * sizeof(float))
+            << static_cast<double>(computations_sp) /
+                   static_cast<double>(memory_traffic)
             << "," << setw(8) << setprecision(2) << kernel_time_mad_sp << ","
             << setw(8) << setprecision(2)
-            << ((double)computations) / kernel_time_mad_sp * 1000. /
-                   (double)(1000 * 1000 * 1000)
+            << static_cast<double>(computations_sp) / kernel_time_mad_sp *
+                   1000. / static_cast<double>(1000 * 1000 * 1000)
             << "," << setw(7) << setprecision(2)
-            << ((double)memoryoperations * sizeof(float)) / kernel_time_mad_sp *
+            << static_cast<double>(memory_traffic) / kernel_time_mad_sp *
                    1000. / (1000. * 1000. * 1000.)
 
             << ",   " << setw(8) << setprecision(3)
-            << ((double)computations) /
-                   ((double)memoryoperations * sizeof(double))
+            << static_cast<double>(computations_dp) /
+                   static_cast<double>(memory_traffic)
             << "," << setw(8) << setprecision(2) << kernel_time_mad_dp << ","
             << setw(8) << setprecision(2)
-            << ((double)computations) / kernel_time_mad_dp * 1000. /
-                   (double)(1000 * 1000 * 1000)
+            << static_cast<double>(computations_dp) / kernel_time_mad_dp *
+                   1000. / static_cast<double>(1000 * 1000 * 1000)
             << "," << setw(7) << setprecision(2)
-            << ((double)memoryoperations * sizeof(double)) /
-                   kernel_time_mad_dp * 1000. / (1000. * 1000. * 1000.)
+            << static_cast<double>(memory_traffic) / kernel_time_mad_dp *
+                   1000. / (1000. * 1000. * 1000.)
 
             << ",  " << setw(8) << setprecision(3)
-            << ((double)computations) / ((double)memoryoperations * sizeof(int))
+            << static_cast<double>(computations_int) /
+                   static_cast<double>(memory_traffic)
             << "," << setw(8) << setprecision(2) << kernel_time_mad_int << ","
             << setw(8) << setprecision(2)
-            << ((double)computations) / kernel_time_mad_int * 1000. /
-                   (double)(1000 * 1000 * 1000)
+            << static_cast<double>(computations_int) / kernel_time_mad_int *
+                   1000. / static_cast<double>(1000 * 1000 * 1000)
             << "," << setw(7) << setprecision(2)
-            << ((double)memoryoperations * sizeof(int)) / kernel_time_mad_int *
+            << static_cast<double>(memory_traffic) / kernel_time_mad_int *
                    1000. / (1000. * 1000. * 1000.)
 
             << std::endl;
@@ -217,7 +246,8 @@ void runbench_range(double *cd, long size) {
 }
 
 void mixbenchCPU(double *c, size_t size) {
-  // Initialize data to zeros on device memory
+// Initialize data to zeros on memory by respecting 1st touch policy
+#pragma omp parallel for schedule(static)
   for (size_t i = 0; i < size; i++) c[i] = 0.0;
 
   std::cout << "--------------------------------------------"
