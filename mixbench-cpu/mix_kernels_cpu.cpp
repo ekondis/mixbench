@@ -144,27 +144,18 @@ void runbench(double *c, size_t size) {
   });
 
   // floating point part (double prec)
-  double kernel_time_mad_dp = 0.;
-  auto timer_start = std::chrono::high_resolution_clock::now();
-
-  bench<double, compute_iterations>(size, 1., -1., c);
-
-  auto timer_duration = std::chrono::high_resolution_clock::now() - timer_start;
-  kernel_time_mad_dp =
-      std::chrono::duration_cast<std::chrono::microseconds>(timer_duration)
-          .count() /
-      1000.;
+  auto kernel_time_mad_dp = benchmark([&] {
+    return measure_operation(
+        [&] { bench<double, compute_iterations>(size, 1., -1., c); });
+  });
 
   // integer part
-  timer_start = std::chrono::high_resolution_clock::now();
-
-  bench<int, compute_iterations>(size, 1, -1, reinterpret_cast<int *>(c));
-
-  timer_duration = std::chrono::high_resolution_clock::now() - timer_start;
-  double kernel_time_mad_int =
-      std::chrono::duration_cast<std::chrono::microseconds>(timer_duration)
-          .count() /
-      1000.;
+  auto kernel_time_mad_int = benchmark([&] {
+    return measure_operation([&] {
+      bench<int, compute_iterations>(size * sizeof(double) / sizeof(int), 1, -1,
+                                     reinterpret_cast<int *>(c));
+    });
+  });
 
   const long long computations =
       size                     /* Vector length */
