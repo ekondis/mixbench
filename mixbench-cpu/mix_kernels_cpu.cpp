@@ -75,36 +75,10 @@ __attribute__((optimize("unroll-loops"))) size_t bench(size_t len,
     const size_t chunk_size = len / static_cast<size_t>(count);
     const size_t chunk_base = static_cast<size_t>(id) * chunk_size;
 
-    if (true) {
-      for (size_t it_base = chunk_base; it_base < chunk_base + chunk_size;
-           it_base += static_chunk_size) {
-        sum += bench_block<Element, compute_iterations, static_chunk_size>(
-            &src[it_base], seed1);
-      }
-    } else {
-      Element f[] = {src[0], src[1], src[2], src[3],
-                     src[4], src[5], src[6], src[7]};
-      for (size_t it_base = chunk_base; it_base < chunk_base + chunk_size;
-           it_base += static_chunk_size) {
-#pragma omp simd aligned(src : 32) reduction(+ : sum)
-        for (size_t i = 0; i < static_chunk_size; i++) {
-          Element t[] = {src[it_base + i], src[it_base + i], src[it_base + i],
-                         src[it_base + i], src[it_base + i], src[it_base + i],
-                         src[it_base + i], src[it_base + i]};
-
-          for (size_t j = 0; j < compute_iterations; j++) {
-            t[0] = t[0] * t[0] + f[0];
-            t[1] = t[1] * t[1] + f[1];
-            t[2] = t[2] * t[2] + f[2];
-            t[3] = t[3] * t[3] + f[3];
-            t[4] = t[4] * t[4] + f[4];
-            t[5] = t[5] * t[5] + f[5];
-            t[6] = t[6] * t[6] + f[6];
-            t[7] = t[7] * t[7] + f[7];
-          }
-          sum += t[0] + t[1] + t[2] + t[3] + t[4] + t[5] + t[6] + t[7];
-        }
-      }
+    for (size_t it_base = chunk_base; it_base < chunk_base + chunk_size;
+         it_base += static_chunk_size) {
+      sum += bench_block<Element, compute_iterations, static_chunk_size>(
+          &src[it_base], seed1);
     }
   }
   *src = sum;
