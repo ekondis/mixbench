@@ -15,7 +15,7 @@
 #include "common.h"
 
 template <typename Element, size_t compute_iterations, size_t static_chunk_size>
-Element __attribute__((noinline)) bench_block(Element *data, Element seed) {
+Element __attribute__((noinline)) bench_block(Element *data) {
   Element sum = 0;
 
   Element f[] = {data[0], data[1], data[2], data[3],
@@ -78,7 +78,7 @@ __attribute__((optimize("unroll-loops"))) size_t bench(size_t len,
     for (size_t it_base = chunk_base; it_base < chunk_base + chunk_size;
          it_base += static_chunk_size) {
       sum += bench_block<Element, compute_iterations, static_chunk_size>(
-          &src[it_base], seed1);
+          &src[it_base]);
     }
   }
   *src = sum;

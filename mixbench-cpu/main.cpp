@@ -47,8 +47,8 @@ int main(int argc, char *argv[]) {
 
   const auto hardware_concurrency = omp_get_num_procs();
 
-  ArgParams args{hardware_concurrency * DEF_VECTOR_SIZE_PER_THREAD /
-                 (1024 * 1024)};
+  ArgParams args{static_cast<unsigned int>(
+      hardware_concurrency * DEF_VECTOR_SIZE_PER_THREAD / (1024 * 1024))};
 
   if (!argument_parsing(argc, argv, &args)) {
     std::cout << "Usage: mixbench-cpu [options] [array size(1024^2)]"
