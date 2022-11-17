@@ -15,6 +15,22 @@
 #include "common.h"
 
 template <typename Element, size_t compute_iterations, size_t static_chunk_size>
+Element __attribute__((noinline)) bench_block_baseline(Element *data) {
+  Element sum = 0;
+  Element f = data[0];
+
+#pragma omp simd aligned(data : 64) reduction(+ : sum)
+  for (size_t i = 0; i < static_chunk_size; i++) {
+    Element t = data[i];
+    for (size_t j = 0; j < compute_iterations; j++) {
+      t = t * t + f;
+    }
+    sum += t;
+  }
+  return sum;
+}
+
+template <typename Element, size_t compute_iterations, size_t static_chunk_size>
 Element __attribute__((noinline)) bench_block(Element *data) {
   Element sum = 0;
 
@@ -68,6 +84,8 @@ __attribute__((optimize("unroll-loops"))) size_t bench(size_t len,
                                                        Element *src) {
   Element sum = 0;
   constexpr size_t static_chunk_size = 4096;
+  constexpr bool use_baseline = false;
+
 #pragma omp parallel reduction(+ : sum)
   {
     auto id = omp_get_thread_num();
@@ -77,8 +95,13 @@ __attribute__((optimize("unroll-loops"))) size_t bench(size_t len,
 
     for (size_t it_base = chunk_base; it_base < chunk_base + chunk_size;
          it_base += static_chunk_size) {
-      sum += bench_block<Element, compute_iterations, static_chunk_size>(
-          &src[it_base]);
+      if constexpr (use_baseline) {
+        sum += bench_block_baseline<Element, compute_iterations, static_chunk_size>(
+            &src[it_base]);
+      } else {
+        sum += bench_block<Element, compute_iterations, static_chunk_size>(
+            &src[it_base]);
+      }
     }
   }
   *src = sum;
