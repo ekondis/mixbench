@@ -45,7 +45,7 @@ bool argument_parsing(int argc, char *argv[], ArgParams *output) {
 int main(int argc, char *argv[]) {
   std::cout << "mixbench-cpu (" << VERSION_INFO << ")" << std::endl;
 
-  const auto hardware_concurrency = omp_get_num_procs();
+  const auto hardware_concurrency = omp_get_max_threads();
 
   ArgParams args{static_cast<unsigned int>(
       hardware_concurrency * DEF_VECTOR_SIZE_PER_THREAD / (1024 * 1024))};
