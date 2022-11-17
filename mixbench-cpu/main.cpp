@@ -21,7 +21,7 @@ using ArgParams = struct { unsigned int vecwidth; };
 // Argument parsing
 // returns whether program execution should continue (true) or just print help
 // output (false)
-bool argument_parsing(int argc, char *argv[], ArgParams *output) {
+bool argument_parsing(int argc, char* argv[], ArgParams* output) {
   int arg_count = 0;
   for (int i = 1; i < argc; i++) {
     if ((strcmp(argv[i], "-h") == 0) || (strcmp(argv[i], "--help") == 0)) {
@@ -42,7 +42,7 @@ bool argument_parsing(int argc, char *argv[], ArgParams *output) {
   return true;
 }
 
-int main(int argc, char *argv[]) {
+int main(int argc, char* argv[]) {
   std::cout << "mixbench-cpu (" << VERSION_INFO << ")" << std::endl;
 
   const auto hardware_concurrency = omp_get_max_threads();

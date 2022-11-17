@@ -15,7 +15,7 @@
 #include "common.h"
 
 template <typename Element, size_t compute_iterations, size_t static_chunk_size>
-Element __attribute__((noinline)) bench_block_baseline(Element *data) {
+Element __attribute__((noinline)) bench_block_baseline(Element* data) {
   Element sum = 0;
   Element f = data[0];
 
@@ -31,7 +31,7 @@ Element __attribute__((noinline)) bench_block_baseline(Element *data) {
 }
 
 template <typename Element, size_t compute_iterations, size_t static_chunk_size>
-Element __attribute__((noinline)) bench_block(Element *data) {
+Element __attribute__((noinline)) bench_block(Element* data) {
   Element sum = 0;
 
   Element f[] = {data[0], data[1], data[2], data[3],
@@ -81,7 +81,7 @@ template <typename Element, size_t compute_iterations>
 __attribute__((optimize("unroll-loops"))) size_t bench(size_t len,
                                                        const Element seed1,
                                                        const Element seed2,
-                                                       Element *src) {
+                                                       Element* src) {
   Element sum = 0;
   constexpr size_t static_chunk_size = 4096;
   constexpr bool use_baseline = false;
@@ -96,8 +96,8 @@ __attribute__((optimize("unroll-loops"))) size_t bench(size_t len,
     for (size_t it_base = chunk_base; it_base < chunk_base + chunk_size;
          it_base += static_chunk_size) {
       if constexpr (use_baseline) {
-        sum += bench_block_baseline<Element, compute_iterations, static_chunk_size>(
-            &src[it_base]);
+        sum += bench_block_baseline<Element, compute_iterations,
+                                    static_chunk_size>(&src[it_base]);
       } else {
         sum += bench_block<Element, compute_iterations, static_chunk_size>(
             &src[it_base]);
@@ -108,7 +108,7 @@ __attribute__((optimize("unroll-loops"))) size_t bench(size_t len,
   return len;
 }
 
-auto runbench_warmup(double *c, size_t size) {
+auto runbench_warmup(double* c, size_t size) {
   auto timer_start = std::chrono::high_resolution_clock::now();
 
   bench<double, 16>(size, 1., -1., c);
@@ -160,14 +160,14 @@ class ComputeSpace {
 };
 
 template <unsigned int compute_iterations>
-void runbench(double *c, size_t size) {
+void runbench(double* c, size_t size) {
   ComputeSpace cs{size * sizeof(double), compute_iterations};
 
   // floating point part (single prec)
   auto kernel_time_mad_sp = benchmark([&] {
     return measure_operation([&] {
       bench<float, compute_iterations>(cs.element_count<float>(), 1.f, -1.f,
-                                       reinterpret_cast<float *>(c));
+                                       reinterpret_cast<float*>(c));
     });
   });
 
@@ -182,7 +182,7 @@ void runbench(double *c, size_t size) {
   auto kernel_time_mad_int = benchmark([&] {
     return measure_operation([&] {
       bench<int, compute_iterations>(cs.element_count<int>(), 1, -1,
-                                     reinterpret_cast<int *>(c));
+                                     reinterpret_cast<int*>(c));
     });
   });
 
@@ -232,20 +232,21 @@ void runbench(double *c, size_t size) {
 
 // Variadic template helper to ease multiple configuration invocations
 template <unsigned int compute_iterations>
-void runbench_range(double *cd, long size) {
+void runbench_range(double* cd, long size) {
   runbench<compute_iterations>(cd, size);
 }
 
 template <unsigned int j1, unsigned int j2, unsigned int... Args>
-void runbench_range(double *cd, long size) {
+void runbench_range(double* cd, long size) {
   runbench_range<j1>(cd, size);
   runbench_range<j2, Args...>(cd, size);
 }
 
-void mixbenchCPU(double *c, size_t size) {
+void mixbenchCPU(double* c, size_t size) {
 // Initialize data to zeros on memory by respecting 1st touch policy
 #pragma omp parallel for schedule(static)
-  for (size_t i = 0; i < size; i++) c[i] = 0.0;
+  for (size_t i = 0; i < size; i++)
+    c[i] = 0.0;
 
   std::cout << "--------------------------------------------"
                "-------------- CSV data "
