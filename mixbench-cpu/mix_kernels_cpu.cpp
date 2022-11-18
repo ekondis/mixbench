@@ -7,12 +7,12 @@
 
 #include <omp.h>
 
+#include <algorithm>
 #include <chrono>
 #include <iomanip>
 #include <iostream>
 #include <memory>
-
-#include "common.h"
+#include <vector>
 
 const auto base_omp_get_max_threads = omp_get_max_threads();
 
