@@ -14,6 +14,8 @@
 
 #include "common.h"
 
+const auto base_omp_get_max_threads = omp_get_max_threads();
+
 template <typename Element, size_t compute_iterations, size_t static_chunk_size>
 Element __attribute__((noinline)) bench_block_baseline(Element* data) {
   Element sum = 0;
@@ -130,6 +132,35 @@ auto measure_operation(Op op) {
          1000.;
 }
 
+template <typename Op>
+auto benchmark_omp(Op op) {
+  constexpr int total_runs = 20;
+  constexpr int total_half_thread_runs = 10;
+
+  auto duration = op();  // drop first measurement
+  std::vector<decltype(duration)> measurements;
+
+  // 1st try with full threading
+  omp_set_num_threads(base_omp_get_max_threads);
+
+  for (int i = 1; i < total_runs; i++) {
+    duration = op();
+    measurements.push_back(duration);
+  }
+
+  // then try with half threading
+  if (base_omp_get_max_threads > 1) {
+    omp_set_num_threads(base_omp_get_max_threads / 2);
+
+    for (int i = 1; i < total_half_thread_runs; i++) {
+      duration = op();
+      measurements.push_back(duration);
+    }
+  }
+
+  return *std::min_element(std::begin(measurements), std::end(measurements));
+}
+
 class ComputeSpace {
   size_t memory_space_{0};
   int compute_iterations_{0};
@@ -164,7 +195,7 @@ void runbench(double* c, size_t size) {
   ComputeSpace cs{size * sizeof(double), compute_iterations};
 
   // floating point part (single prec)
-  auto kernel_time_mad_sp = benchmark([&] {
+  auto kernel_time_mad_sp = benchmark_omp([&] {
     return measure_operation([&] {
       bench<float, compute_iterations>(cs.element_count<float>(), 1.f, -1.f,
                                        reinterpret_cast<float*>(c));
@@ -172,14 +203,14 @@ void runbench(double* c, size_t size) {
   });
 
   // floating point part (double prec)
-  auto kernel_time_mad_dp = benchmark([&] {
+  auto kernel_time_mad_dp = benchmark_omp([&] {
     return measure_operation([&] {
       bench<double, compute_iterations>(cs.element_count<double>(), 1., -1., c);
     });
   });
 
   // integer part
-  auto kernel_time_mad_int = benchmark([&] {
+  auto kernel_time_mad_int = benchmark_omp([&] {
     return measure_operation([&] {
       bench<int, compute_iterations>(cs.element_count<int>(), 1, -1,
                                      reinterpret_cast<int*>(c));
