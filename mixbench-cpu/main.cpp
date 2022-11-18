@@ -68,8 +68,8 @@ int main(int argc, char* argv[]) {
 
   c.reset(new (std::align_val_t(64)) double[VEC_WIDTH]);
 
-  std::cout << "VEC_WIDTH: " << VEC_WIDTH << std::endl;
-
+  std::cout << "Working memory size: " << args.vecwidth * sizeof(double) << "MB"
+            << std::endl;
   std::cout << "Total threads: " << hardware_concurrency << std::endl;
 
   mixbenchCPU(c.get(), VEC_WIDTH);
