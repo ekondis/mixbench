@@ -16,8 +16,10 @@
 
 const auto base_omp_get_max_threads = omp_get_max_threads();
 
+#ifdef BASELINE_IMPL
+
 template <typename Element, size_t compute_iterations, size_t static_chunk_size>
-Element __attribute__((noinline)) bench_block_baseline(Element* data) {
+Element __attribute__((noinline)) bench_block(Element* data) {
   Element sum = 0;
   Element f = data[0];
 
@@ -31,6 +33,8 @@ Element __attribute__((noinline)) bench_block_baseline(Element* data) {
   }
   return sum;
 }
+
+#else
 
 template <typename Element, size_t compute_iterations, size_t static_chunk_size>
 Element __attribute__((noinline)) bench_block(Element* data) {
@@ -79,6 +83,8 @@ Element __attribute__((noinline)) bench_block(Element* data) {
   return sum;
 }
 
+#endif
+
 template <typename Element, size_t compute_iterations>
 __attribute__((optimize("unroll-loops"))) size_t bench(size_t len,
                                                        const Element seed1,
@@ -86,7 +92,6 @@ __attribute__((optimize("unroll-loops"))) size_t bench(size_t len,
                                                        Element* src) {
   Element sum = 0;
   constexpr size_t static_chunk_size = 4096;
-  constexpr bool use_baseline = false;
 
 #pragma omp parallel reduction(+ : sum)
   {
@@ -97,13 +102,8 @@ __attribute__((optimize("unroll-loops"))) size_t bench(size_t len,
 
     for (size_t it_base = chunk_base; it_base < chunk_base + chunk_size;
          it_base += static_chunk_size) {
-      if constexpr (use_baseline) {
-        sum += bench_block_baseline<Element, compute_iterations,
-                                    static_chunk_size>(&src[it_base]);
-      } else {
-        sum += bench_block<Element, compute_iterations, static_chunk_size>(
-            &src[it_base]);
-      }
+      sum += bench_block<Element, compute_iterations, static_chunk_size>(
+          &src[it_base]);
     }
   }
   *src = sum;

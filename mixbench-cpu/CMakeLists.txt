@@ -10,6 +10,8 @@ include_directories("../include")
 
 find_package(OpenMP)
 
+option(BASELINE_IMPL "Use baseline implementation" OFF)
+
 # Set default build type to RelWithDebInfo if not specified
 if (NOT CMAKE_BUILD_TYPE)
     message (STATUS "Default CMAKE_BUILD_TYPE not set. Using Release with Debug Info")
@@ -34,6 +36,11 @@ file(APPEND "version_info.h" ${GIT_REV})
 file(APPEND "version_info.h" "\"")
 
 add_executable(mixbench-cpu main.cpp mix_kernels_cpu.cpp)
+
+if(${BASELINE_IMPL})
+    message(WARNING "Enforcing baseline implementation")
+    target_compile_definitions(mixbench-cpu PRIVATE BASELINE_IMPL)
+endif()
 
 if(OpenMP_CXX_FOUND)
     target_link_libraries(mixbench-cpu PUBLIC OpenMP::OpenMP_CXX)
