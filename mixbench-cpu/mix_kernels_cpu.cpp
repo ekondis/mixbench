@@ -120,8 +120,6 @@ auto runbench_warmup(double* c, size_t size) {
       .count();
 }
 
-using half2 = float;
-
 template <typename Op>
 auto measure_operation(Op op) {
   auto timer_start = std::chrono::high_resolution_clock::now();
