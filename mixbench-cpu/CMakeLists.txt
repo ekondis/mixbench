@@ -8,6 +8,12 @@ project(mixbench-cpu LANGUAGES CXX)
 set(CMAKE_CXX_EXTENSIONS OFF)
 include_directories("../include")
 
+if ("${CMAKE_CXX_COMPILER_ID}" STREQUAL "GNU")
+  MESSAGE(STATUS "GNU C++ compiler is used")
+else()
+  MESSAGE(WARNING "Not a GNU C++ compiler is used. Potentially not optimized for this.")
+endif()
+
 find_package(OpenMP)
 
 option(BASELINE_IMPL "Use baseline implementation" OFF)
