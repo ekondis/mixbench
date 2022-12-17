@@ -74,6 +74,17 @@ Note: Older ROCm releases might require adding `--rocm-device-lib-path=/opt/rocm
 cmake ../mixbench-sycl -D CMAKE_CXX_COMPILER=clang++ -D CMAKE_CXX_FLAGS="-fsycl -std=c++17 -fsycl-targets=nvptx64-nvidia-cuda"
 ```
 
+## Notes
+
+mixbench-cpu has been developed with g++ (gcc) in mind.
+As such, it has been validated on the particular compiler that it vectorizes and properly unrolls the vectorized
+instructions as intended, in order to approach peak performance.
+clang on the other hand, at the time of development, has been observed that it does not properly produce optimum
+machine instruction sequences.
+The nature of computations for loop iteration in this benchmark is inherently sequential.
+So, it is essential that the compiler unrolls sufficiently the loop in the generated code so the CPU does not stall
+due to dependencies.
+
 ## Execution results
 
 A typical execution output on an NVidia RTX-2070 GPU is:
