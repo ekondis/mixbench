@@ -93,19 +93,12 @@ __attribute__((optimize("unroll-loops"))) size_t bench(size_t len,
   Element sum = 0;
   constexpr size_t static_chunk_size = 4096;
 
-#pragma omp parallel reduction(+ : sum)
-  {
-    auto id = omp_get_thread_num();
-    auto count = omp_get_num_threads();
-    const size_t chunk_size = len / static_cast<size_t>(count);
-    const size_t chunk_base = static_cast<size_t>(id) * chunk_size;
-
-    for (size_t it_base = chunk_base; it_base < chunk_base + chunk_size;
-         it_base += static_chunk_size) {
-      sum += bench_block<Element, compute_iterations, static_chunk_size>(
-          &src[it_base]);
-    }
+#pragma omp parallel for reduction(+ : sum) schedule(dynamic, 128)
+  for (size_t it_base = 0; it_base < len; it_base += static_chunk_size) {
+    sum += bench_block<Element, compute_iterations, static_chunk_size>(
+        &src[it_base]);
   }
+
   *src = sum;
   return len;
 }
