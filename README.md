@@ -76,7 +76,7 @@ cmake ../mixbench-sycl -D CMAKE_CXX_COMPILER=clang++ -D CMAKE_CXX_FLAGS="-fsycl 
 
 ## Notes
 
-mixbench-cpu has been developed with g++ (gcc) in mind.
+`mixbench-cpu` has been developed with g++ (gcc) in mind.
 As such, it has been validated on the particular compiler that it vectorizes and properly unrolls the vectorized
 instructions as intended, in order to approach peak performance.
 clang on the other hand, at the time of development, has been observed that it does not properly produce optimum
