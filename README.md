@@ -1,5 +1,5 @@
 # mixbench
-The purpose of this benchmark tool is to evaluate performance bounds of GPUs on mixed operational intensity kernels. The executed kernel is customized on a range of different operational intensity values. Modern GPUs are able to hide memory latency by switching execution to threads able to perform compute operations. Using this tool one can assess the practical optimum balance in both types of operations for a GPU. CUDA, HIP, OpenCL and SYCL implementations have been developed.
+The purpose of this benchmark tool is to evaluate performance bounds of GPUs (or CPUs) on mixed operational intensity kernels. The executed kernel is customized on a range of different operational intensity values. Modern GPUs are able to hide memory latency by switching execution to threads able to perform compute operations. Using this tool one can assess the practical optimum balance in both types of operations for a compute device. CUDA, HIP, OpenCL and SYCL implementations have been developed, targeting GPUs, or OpenMP when using a CPU as a target.
 
 ## Kernel types
 
@@ -7,7 +7,7 @@ Four types of experiments are executed combined with global memory accesses:
 
 1. Single precision Flops (multiply-additions)
 2. Double precision Flops (multiply-additions)
-3. Half precision Flops (multiply-additions)
+3. Half precision Flops (multiply-additions, for GPUs only)
 4. Integer multiply-addition operations
 
 ## How to build
@@ -18,8 +18,10 @@ Building is based now on CMake files. Each implementation resides in a separate 
 * OpenCL implementation: `mixbench-opencl`
 * HIP implementation: `mixbench-hip`
 * SYCL implementation: `mixbench-sycl`
+* CPU/OpenMP implementation: `mixbench-cpu`
 
-Thus, to build a particular implementation use the proper `CMakeLists.txt`, e.g. for the OpenCL implementation you may use the commands as follows:
+Thus, to build a particular implementation use the proper `CMakeLists.txt` residing in each subdirectory,
+e.g. for the OpenCL implementation you may use the commands as follows:
 
 ```
 mkdir build
@@ -71,6 +73,17 @@ Note: Older ROCm releases might require adding `--rocm-device-lib-path=/opt/rocm
 ```
 cmake ../mixbench-sycl -D CMAKE_CXX_COMPILER=clang++ -D CMAKE_CXX_FLAGS="-fsycl -std=c++17 -fsycl-targets=nvptx64-nvidia-cuda"
 ```
+
+## Notes
+
+`mixbench-cpu` has been developed with g++ (gcc) in mind.
+As such, it has been validated on the particular compiler that it vectorizes and properly unrolls the vectorized
+instructions as intended, in order to approach peak performance.
+clang on the other hand, at the time of development, has been observed that it does not properly produce optimum
+machine instruction sequences.
+The nature of computations for loop iteration in this benchmark is inherently sequential.
+So, it is essential that the compiler unrolls sufficiently the loop in the generated code so the CPU does not stall
+due to dependencies.
 
 ## Execution results
 
