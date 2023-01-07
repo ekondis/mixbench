@@ -1,5 +1,5 @@
 /**
- * mix_kernels_sycl_ro.cpp: This file is part of the mixbench GPU micro-benchmark suite.
+ * mix_kernels_sycl.cpp: This file is part of the mixbench GPU micro-benchmark suite.
  *
  * Contact: Elias Konstantinidis <ekondis@gmail.com>
  **/

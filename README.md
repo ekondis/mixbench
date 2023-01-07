@@ -1,6 +1,16 @@
 # mixbench
 The purpose of this benchmark tool is to evaluate performance bounds of GPUs (or CPUs) on mixed operational intensity kernels. The executed kernel is customized on a range of different operational intensity values. Modern GPUs are able to hide memory latency by switching execution to threads able to perform compute operations. Using this tool one can assess the practical optimum balance in both types of operations for a compute device. CUDA, HIP, OpenCL and SYCL implementations have been developed, targeting GPUs, or OpenMP when using a CPU as a target.
 
+## Implementations
+
+* CUDA: `mixbench-cuda`
+* OpenCL: `mixbench-opencl`
+* HIP: `mixbench-hip`
+* SYCL: `mixbench-sycl`
+* CPU/OpenMP: `mixbench-cpu`
+
+Since each implementation resides in a separate folder, please check the documentation available within each sub-project's folder.
+
 ## Kernel types
 
 Four types of experiments are executed combined with global memory accesses:
@@ -12,14 +22,7 @@ Four types of experiments are executed combined with global memory accesses:
 
 ## How to build
 
-Building is based now on CMake files. Each implementation resides in a separate folder:
-
-* CUDA implementation: `mixbench-cuda`
-* OpenCL implementation: `mixbench-opencl`
-* HIP implementation: `mixbench-hip`
-* SYCL implementation: `mixbench-sycl`
-* CPU/OpenMP implementation: `mixbench-cpu`
-
+Building is based on CMake files.
 Thus, to build a particular implementation use the proper `CMakeLists.txt` residing in each subdirectory,
 e.g. for the OpenCL implementation you may use the commands as follows:
 
@@ -27,63 +30,10 @@ e.g. for the OpenCL implementation you may use the commands as follows:
 mkdir build
 cd build
 cmake ../mixbench-opencl
+cmake --build ./
 ```
 
-In some cases (depending on the CMake version) the OpenCL files might not be discovered automatically. In such cases you might need to provide the OpenCL directories explicitly, as in the examples below:
-
-```
-cmake ../mixbench-opencl -DOpenCL_LIBRARY=/usr/local/cuda/lib64/libOpenCL.so -DOpenCL_INCLUDE_DIR=/usr/local/cuda/include/
-cmake ../mixbench-opencl -DOpenCL_LIBRARY=/opt/rocm/lib/libOpenCL.so -DOpenCL_INCLUDE_DIR=/opt/rocm/opencl/include/
-cmake ../mixbench-opencl -DOpenCL_LIBRARY=/opt/amdgpu-pro/lib/x86_64-linux-gnu/libOpenCL.so
-```
-
-For HIP version, the HIP_PATH environment variable should be set to point to HIP installation directory. For more information follow the instructions on the following blog to properly install ROCK and ROCR drivers:  
-* ROCm:  
-https://github.com/RadeonOpenCompute/ROCm
-* HIP:  
-https://github.com/GPUOpen-ProfessionalCompute-Tools/HIP
-
-For the SYCL version, some example cmake invocations follow depending on the underlying platform:
-
-### Intel clang/DPCPP
-
-```
-cmake ../mixbench-sycl -D CMAKE_CXX_COMPILER=clang++ -D CMAKE_CXX_FLAGS="-fsycl -std=c++17 -fsycl-device-code-split=per_kernel"
-# or ...
-cmake ../mixbench-sycl -D CMAKE_CXX_COMPILER=dpcpp -D CMAKE_CXX_FLAGS="-fsycl-device-code-split=per_kernel"
-```
-Note: `per_kernel` mode facilitates cases where the device lacks support for computations on a particular data type, e.g. double precision.
-
-If you are building under Windows/DPC++ try:
-```
-cmake ..\mixbench-sycl -T "Intel(R) oneAPI DPC++ Compiler"  -D CMAKE_CXX_COMPILER=dpcpp -D CMAKE_CXX_FLAGS="-fsycl-device-code-split=per_kernel /EHsc"
-```
-Note: Adjust the platform toolset argument (*"Intel(R) oneAPI DPC++ Compiler"*) to whatever required, e.g. *"Intel(R) oneAPI DPC++ Compiler 2022"* for DPC++ 2022.1.
-
-### AMD hipSYCL under ROCm
-
-Here building for two device architectures (*gfx803* & *gfx1012*):
-
-```
-cmake ../mixbench-sycl -D CMAKE_CXX_COMPILER=syclcc -D CMAKE_CXX_FLAGS="--hipsycl-targets='omp;hip:gfx803,gfx1012' -O2"
-```
-Note: Older ROCm releases might require adding `--rocm-device-lib-path=/opt/rocm/amdgcn/bitcode` to CMAKE_CXX_FLAGS
-
-### NVidia clang/DPCPP
-```
-cmake ../mixbench-sycl -D CMAKE_CXX_COMPILER=clang++ -D CMAKE_CXX_FLAGS="-fsycl -std=c++17 -fsycl-targets=nvptx64-nvidia-cuda"
-```
-
-## Notes
-
-`mixbench-cpu` has been developed with g++ (gcc) in mind.
-As such, it has been validated on the particular compiler that it vectorizes and properly unrolls the vectorized
-instructions as intended, in order to approach peak performance.
-clang on the other hand, at the time of development, has been observed that it does not properly produce optimum
-machine instruction sequences.
-The nature of computations for loop iteration in this benchmark is inherently sequential.
-So, it is essential that the compiler unrolls sufficiently the loop in the generated code so the CPU does not stall
-due to dependencies.
+For more information, check available READMEs within each subfolder.
 
 ## Execution results
 

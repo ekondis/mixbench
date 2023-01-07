@@ -27,6 +27,6 @@ file(WRITE "version_info.h" "#define VERSION_INFO \"")
 file(APPEND "version_info.h" ${GIT_REV})
 file(APPEND "version_info.h" "\"")
 
-add_executable(mixbench-sycl-ro main-sycl.cpp lsyclutil.h mix_kernels_sycl.cpp)
+add_executable(mixbench-sycl main-sycl.cpp lsyclutil.h mix_kernels_sycl.cpp)
 
-set_target_properties(mixbench-sycl-ro PROPERTIES CXX_EXTENSIONS OFF)
+set_target_properties(mixbench-sycl PROPERTIES CXX_EXTENSIONS OFF)
