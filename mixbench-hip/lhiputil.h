@@ -11,7 +11,7 @@
 #include <hip/hip_runtime.h>
 #include <hip/hip_runtime_api.h>
 
-#define CUDA_SAFE_CALL( call) {                                    \
+#define HIP_SAFE_CALL( call) {                                    \
     hipError_t err = call;                                                    \
     if( hipSuccess != err) {                                                \
         fprintf(stderr, "Cuda error in file '%s' in line %i : %s.\n",        \
@@ -43,8 +43,8 @@ static inline void GetDevicePeakInfo(double *aGIPS, double *aGBPS, hipDeviceProp
 	if( aDeviceProp )
 		deviceProp = *aDeviceProp;
 	else{
-		CUDA_SAFE_CALL( hipGetDevice(&current_device) );
-		CUDA_SAFE_CALL( hipGetDeviceProperties(&deviceProp, current_device) );
+		HIP_SAFE_CALL( hipGetDevice(&current_device) );
+		HIP_SAFE_CALL( hipGetDeviceProperties(&deviceProp, current_device) );
 	}
 	const int TotalSPs = _ConvertSMVer2Cores(deviceProp.major, deviceProp.minor)*deviceProp.multiProcessorCount;
 	*aGIPS = 1000.0 * deviceProp.clockRate * TotalSPs / (1000.0 * 1000.0 * 1000.0);  // Giga instructions/sec
@@ -54,8 +54,8 @@ static inline void GetDevicePeakInfo(double *aGIPS, double *aGBPS, hipDeviceProp
 static inline hipDeviceProp_t GetDeviceProperties(void){
 	hipDeviceProp_t deviceProp;
 	int current_device;
-	CUDA_SAFE_CALL( hipGetDevice(&current_device) );
-	CUDA_SAFE_CALL( hipGetDeviceProperties(&deviceProp, current_device) );
+	HIP_SAFE_CALL( hipGetDevice(&current_device) );
+	HIP_SAFE_CALL( hipGetDeviceProperties(&deviceProp, current_device) );
 	return deviceProp;
 }
 
@@ -63,9 +63,9 @@ static inline hipDeviceProp_t GetDeviceProperties(void){
 static void StoreDeviceInfo(FILE *fout){
 	hipDeviceProp_t deviceProp;
 	int current_device, driver_version;
-	CUDA_SAFE_CALL( hipGetDevice(&current_device) );
-	CUDA_SAFE_CALL( hipGetDeviceProperties(&deviceProp, current_device) );
-	CUDA_SAFE_CALL( hipDriverGetVersion(&driver_version) );
+	HIP_SAFE_CALL( hipGetDevice(&current_device) );
+	HIP_SAFE_CALL( hipGetDeviceProperties(&deviceProp, current_device) );
+	HIP_SAFE_CALL( hipDriverGetVersion(&driver_version) );
 	fprintf(fout, "------------------------ Device specifications ------------------------\n");
 	fprintf(fout, "Device:              %s\n", deviceProp.name);
 	fprintf(fout, "CUDA driver version: %d.%d\n", driver_version/1000, driver_version%1000);

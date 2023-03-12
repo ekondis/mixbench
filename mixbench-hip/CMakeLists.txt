@@ -1,4 +1,4 @@
-cmake_minimum_required(VERSION 2.8.3)
+cmake_minimum_required(VERSION 3.10)
 
 if(NOT DEFINED HIP_PATH)
     if(NOT DEFINED ENV{HIP_PATH})
@@ -9,9 +9,14 @@ if(NOT DEFINED HIP_PATH)
 endif()
 set(CMAKE_MODULE_PATH "${HIP_PATH}/cmake" ${CMAKE_MODULE_PATH})
 
-project(mixbench-hip)
+project(mixbench-hip LANGUAGES CXX)
 
-find_package(HIP QUIET)
+set(CMAKE_CXX_STANDARD 17)
+
+# Search for rocm in common locations
+list(APPEND CMAKE_PREFIX_PATH ${ROCM_PATH}/hip ${ROCM_PATH})
+
+find_package(HIP)
 if(HIP_FOUND)
     message(STATUS "Found HIP: " ${HIP_VERSION})
 else()
@@ -31,8 +36,16 @@ file(WRITE "version_info.h" "#define VERSION_INFO \"")
 file(APPEND "version_info.h" ${GIT_REV})
 file(APPEND "version_info.h" "\"")
 
+# Set compiler and linker
+set(CMAKE_CXX_COMPILER ${HIP_HIPCC_EXECUTABLE})
+set(CMAKE_CXX_LINKER   ${HIP_HIPCC_EXECUTABLE})
+set(CMAKE_BUILD_TYPE Release)
+
+include_directories("../include")
+
 set(BENCH_SOURCE_FILES main-hip.cpp mix_kernels_hip.cpp)
 
 set_source_files_properties(${BENCH_SOURCE_FILES} PROPERTIES HIP_SOURCE_PROPERTY_FORMAT 1)
 
-hip_add_executable(mixbench-hip ${BENCH_SOURCE_FILES})
+
+add_executable(mixbench-hip ${BENCH_SOURCE_FILES})
