@@ -29,20 +29,21 @@
 *.hex
 
 # Specific executables
-mixbench-cuda-alt
-mixbench-cuda-ro
-mixbench-hip-alt
-mixbench-hip-ro
-mixbench-ocl-alt
-mixbench-ocl-ro
-mixbench-sycl-alt
-mixbench-sycl-ro
+mixbench-cuda
+mixbench-hip
+mixbench-ocl
+mixbench-sycl
+mixbench-cpu
 
 # Debug files
 *.dSYM/
 
 # Build folders
-build/
+mixbench-cuda/build*/
+mixbench-hip/build*/
+mixbench-opencl/build*/
+mixbench-sycl/build*/
+mixbench-cpu/build*/
 
 # Other
 version_info.h
