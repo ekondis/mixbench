@@ -4,7 +4,7 @@ This is the OpenCL implementation of mixbench.
 
 ## Building notes
 
-In some cases (depending on the CMake version) the OpenCL files might not be
+Occasionally, (depending on the CMake version) the OpenCL files might not be
 discovered automatically.
 In such cases you might need to provide the OpenCL directories explicitly,
 as seen in the examples below:

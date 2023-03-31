@@ -1,5 +1,5 @@
 /**
- * mix_kernels_ocl_ro.cpp: This file is part of the mixbench GPU micro-benchmark suite.
+ * mix_kernels_ocl.cpp: This file is part of the mixbench GPU micro-benchmark suite.
  *
  * Contact: Elias Konstantinidis <ekondis@gmail.com>
  **/
@@ -7,9 +7,8 @@
 #include <cstdio>
 #include <cstdarg>
 #include <cstring>
-#define CL_USE_DEPRECATED_OPENCL_1_2_APIS
 #include "loclutil.h"
-#include "timestamp.h"
+#include <timestamp.h>
 
 #if defined(_MSC_VER)
 #define SIZE_T_FORMAT "%lu"

@@ -9,6 +9,8 @@
 
 #include <cstdio>
 #include <cstdlib>
+#define CL_USE_DEPRECATED_OPENCL_1_2_APIS
+#define CL_TARGET_OPENCL_VERSION 120
 #include <CL/opencl.h>
 
 #if defined(_MSC_VER)
