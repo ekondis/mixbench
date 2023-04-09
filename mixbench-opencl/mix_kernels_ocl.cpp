@@ -1,14 +1,16 @@
 /**
- * mix_kernels_ocl.cpp: This file is part of the mixbench GPU micro-benchmark suite.
+ * mix_kernels_ocl.cpp: This file is part of the mixbench GPU micro-benchmark
+ *suite.
  *
  * Contact: Elias Konstantinidis <ekondis@gmail.com>
  **/
 
-#include <cstdio>
+#include <common.h>
+#include <timestamp.h>
 #include <cstdarg>
+#include <cstdio>
 #include <cstring>
 #include "loclutil.h"
-#include <timestamp.h>
 
 #if defined(_MSC_VER)
 #define SIZE_T_FORMAT "%lu"
@@ -129,61 +131,82 @@ void runbench(const int compute_iterations[], unsigned int krn_idx, cl_command_q
 	const long compute_grid_size = size/elements_per_wi/fusion_degree;
 	const int current_compute_iterations = compute_iterations[krn_idx];
 	const long long computations = (elements_per_wi*(long long)compute_grid_size+(2*elements_per_wi*current_compute_iterations)*(long long)compute_grid_size)*fusion_degree;
-	const long long memoryoperations = size;
+  const long long memoryoperations = size;
 
-	const size_t dimBlock[1] = {workgroupsize};
-	const size_t dimGrid[1] = {(size_t)compute_grid_size};
+  const size_t dimBlock[1] = {workgroupsize};
+  const size_t dimGrid[1] = {(size_t)compute_grid_size};
 
-	cl_event event;
-	timestamp ts_start;
-	
-	const cl_float seed_f = 1.0f;
-	cl_kernel kernel = kernels[kdt_float][krn_idx];
-	OCL_SAFE_CALL( clSetKernelArg(kernel, 0, sizeof(cl_float), &seed_f) );
-	OCL_SAFE_CALL( clSetKernelArg(kernel, 1, sizeof(cl_mem), &cbuffer) );
-	ts_start = getTimestamp();
-	OCL_SAFE_CALL( clEnqueueNDRangeKernel(queue, kernel, 1, NULL, dimGrid, dimBlock, 0, NULL, &event) );
-	OCL_SAFE_CALL( clWaitForEvents(1, &event) );
-	double kernel_time_mad_sp = use_os_timer ? getElapsedtime(ts_start) : get_event_duration(event);
-	OCL_SAFE_CALL( clReleaseEvent( event ) );
+  constexpr auto total_bench_iterations = 3;
 
-	const cl_double seed_d = 1.0;
-	double kernel_time_mad_dp;
-	kernel = kernels[kdt_double][krn_idx];
-	if( kernel ){
-		OCL_SAFE_CALL( clSetKernelArg(kernel, 0, sizeof(cl_double), &seed_d) );
-		OCL_SAFE_CALL( clSetKernelArg(kernel, 1, sizeof(cl_mem), &cbuffer) );
-		ts_start = getTimestamp();
-		OCL_SAFE_CALL( clEnqueueNDRangeKernel(queue, kernel, 1, NULL, dimGrid, dimBlock, 0, NULL, &event) );
-		OCL_SAFE_CALL( clWaitForEvents(1, &event) );
-		kernel_time_mad_dp = use_os_timer ? getElapsedtime(ts_start) : get_event_duration(event);
-		OCL_SAFE_CALL( clReleaseEvent( event ) );
-	} else 
-		kernel_time_mad_dp = 0.0;
+  double kernel_time_mad_sp = benchmark<total_bench_iterations>([&]() {
+    const cl_float seed_f = 1.0f;
+    cl_kernel kernel = kernels[kdt_float][krn_idx];
+    OCL_SAFE_CALL(clSetKernelArg(kernel, 0, sizeof(cl_float), &seed_f));
+    OCL_SAFE_CALL(clSetKernelArg(kernel, 1, sizeof(cl_mem), &cbuffer));
+    auto ts_start = getTimestamp();
+    cl_event event;
+    OCL_SAFE_CALL(clEnqueueNDRangeKernel(queue, kernel, 1, NULL, dimGrid,
+                                         dimBlock, 0, NULL, &event));
+    OCL_SAFE_CALL(clWaitForEvents(1, &event));
+    auto duration =
+        use_os_timer ? getElapsedtime(ts_start) : get_event_duration(event);
+    OCL_SAFE_CALL(clReleaseEvent(event));
+    return duration;
+  });
 
-	const cl_half2 seed_h = {15360, 15360}; // {1.0, 1.0}
-	double kernel_time_mad_hp;
-	kernel = kernels[kdt_half][krn_idx];
-	if( kernel ){
-		OCL_SAFE_CALL( clSetKernelArg(kernel, 0, sizeof(cl_half2), &seed_h) );
-		OCL_SAFE_CALL( clSetKernelArg(kernel, 1, sizeof(cl_mem), &cbuffer) );
-		ts_start = getTimestamp();
-		OCL_SAFE_CALL( clEnqueueNDRangeKernel(queue, kernel, 1, NULL, dimGrid, dimBlock, 0, NULL, &event) );
-		OCL_SAFE_CALL( clWaitForEvents(1, &event) );
-		kernel_time_mad_hp = use_os_timer ? getElapsedtime(ts_start) : get_event_duration(event);
-		OCL_SAFE_CALL( clReleaseEvent( event ) );
-	} else
-		kernel_time_mad_hp = 0.0;
+  double kernel_time_mad_dp = benchmark<total_bench_iterations>([&]() {
+    const cl_double seed_d = 1.0;
+    cl_kernel kernel = kernels[kdt_double][krn_idx];
+    if (kernel) {
+      OCL_SAFE_CALL(clSetKernelArg(kernel, 0, sizeof(cl_double), &seed_d));
+      OCL_SAFE_CALL(clSetKernelArg(kernel, 1, sizeof(cl_mem), &cbuffer));
+      auto ts_start = getTimestamp();
+      cl_event event;
+      OCL_SAFE_CALL(clEnqueueNDRangeKernel(queue, kernel, 1, NULL, dimGrid,
+                                           dimBlock, 0, NULL, &event));
+      OCL_SAFE_CALL(clWaitForEvents(1, &event));
+      auto duration =
+          use_os_timer ? getElapsedtime(ts_start) : get_event_duration(event);
+      OCL_SAFE_CALL(clReleaseEvent(event));
+      return duration;
+    } else
+      return 0.0;
+  });
 
-	const cl_int seed_i = 1.0;
-	kernel = kernels[kdt_int][krn_idx];
-	OCL_SAFE_CALL( clSetKernelArg(kernel, 0, sizeof(cl_int), &seed_i) );
-	OCL_SAFE_CALL( clSetKernelArg(kernel, 1, sizeof(cl_mem), &cbuffer) );
-	ts_start = getTimestamp();
-	OCL_SAFE_CALL( clEnqueueNDRangeKernel(queue, kernel, 1, NULL, dimGrid, dimBlock, 0, NULL, &event) );
-	OCL_SAFE_CALL( clWaitForEvents(1, &event) );
-	double kernel_time_mad_int = use_os_timer ? getElapsedtime(ts_start) : get_event_duration(event);
-	OCL_SAFE_CALL( clReleaseEvent( event ) );
+  double kernel_time_mad_hp = benchmark<total_bench_iterations>([&]() {
+    const cl_half2 seed_h = {15360, 15360};  // {1.0, 1.0}
+    cl_kernel kernel = kernels[kdt_half][krn_idx];
+    if (kernel) {
+      OCL_SAFE_CALL(clSetKernelArg(kernel, 0, sizeof(cl_half2), &seed_h));
+      OCL_SAFE_CALL(clSetKernelArg(kernel, 1, sizeof(cl_mem), &cbuffer));
+      auto ts_start = getTimestamp();
+      cl_event event;
+      OCL_SAFE_CALL(clEnqueueNDRangeKernel(queue, kernel, 1, NULL, dimGrid,
+                                           dimBlock, 0, NULL, &event));
+      OCL_SAFE_CALL(clWaitForEvents(1, &event));
+      auto duration =
+          use_os_timer ? getElapsedtime(ts_start) : get_event_duration(event);
+      OCL_SAFE_CALL(clReleaseEvent(event));
+      return duration;
+    } else
+      return 0.0;
+  });
+
+  double kernel_time_mad_int = benchmark<total_bench_iterations>([&]() {
+    const cl_int seed_i = static_cast<cl_int>(1.0);
+    cl_kernel kernel = kernels[kdt_int][krn_idx];
+    OCL_SAFE_CALL(clSetKernelArg(kernel, 0, sizeof(cl_int), &seed_i));
+    OCL_SAFE_CALL(clSetKernelArg(kernel, 1, sizeof(cl_mem), &cbuffer));
+    auto ts_start = getTimestamp();
+    cl_event event;
+    OCL_SAFE_CALL(clEnqueueNDRangeKernel(queue, kernel, 1, NULL, dimGrid,
+                                         dimBlock, 0, NULL, &event));
+    OCL_SAFE_CALL(clWaitForEvents(1, &event));
+    auto duration =
+        use_os_timer ? getElapsedtime(ts_start) : get_event_duration(event);
+    OCL_SAFE_CALL(clReleaseEvent(event));
+    return duration;
+  });
 
 	printf("         %4d,   %8.3f,%8.2f,%8.2f,%7.2f,   %8.3f,%8.2f,%8.2f,%7.2f,   %8.3f,%8.2f,%8.2f,%7.2f,  %8.3f,%8.2f,%8.2f,%7.2f\n",
 		current_compute_iterations,
