@@ -12,7 +12,7 @@ https://github.com/GPUOpen-ProfessionalCompute-Tools/HIP
 
 In case you want to retain the kernels' assembly code, you may pass the following parameter:
 ```
-cmake ../mixbench-hip/ -D HIP_HIPCC_FLAGS="-save-temps"
+cmake ../mixbench-hip/ -D CMAKE_HIP_FLAGS="-save-temps=obj"
 ```
 
 ## Execution
