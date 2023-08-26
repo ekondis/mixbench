@@ -10,6 +10,7 @@
 #include <stdint.h>
 #include <math.h>
 #include "lcutil.h"
+#include <common.h>
 
 #define ELEMENTS_PER_THREAD (8)
 #define FUSION_DEGREE (4)
@@ -113,27 +114,38 @@ void runbench(double *cd, long size, bool doHalfs){
 	dim3 dimBlock(BLOCK_SIZE, 1, 1);
 	dim3 dimGrid(TOTAL_BLOCKS, 1, 1);
 	cudaEvent_t start, stop;
+	constexpr auto total_bench_iterations = 3;
 
-	initializeEvents(&start, &stop);
-	benchmark_func< float, BLOCK_SIZE, ELEMENTS_PER_THREAD, FUSION_DEGREE, compute_iterations, false ><<< dimGrid, dimBlock >>>(1.0f, (float*)cd);
-	float kernel_time_mad_sp = finalizeEvents(start, stop);
+	float kernel_time_mad_sp = benchmark<total_bench_iterations>([&]() {
+		initializeEvents(&start, &stop);
+		benchmark_func<float, BLOCK_SIZE, ELEMENTS_PER_THREAD, FUSION_DEGREE,
+						compute_iterations, false>
+			<<<dimGrid, dimBlock>>>(1.0f, (float*)cd);
+		return finalizeEvents(start, stop);
+	});
 
-	initializeEvents(&start, &stop);
-	benchmark_func< double, BLOCK_SIZE, ELEMENTS_PER_THREAD, FUSION_DEGREE, compute_iterations, false ><<< dimGrid, dimBlock >>>(1.0, cd);
-	float kernel_time_mad_dp = finalizeEvents(start, stop);
+	float kernel_time_mad_dp = benchmark<total_bench_iterations>([&]() {
+		initializeEvents(&start, &stop);
+		benchmark_func< double, BLOCK_SIZE, ELEMENTS_PER_THREAD, FUSION_DEGREE, compute_iterations, false ><<< dimGrid, dimBlock >>>(1.0, cd);
+		return finalizeEvents(start, stop);
+	});
 
 	float kernel_time_mad_hp = 0.f;
 	if( doHalfs ){
-		initializeEvents(&start, &stop);
-		half2 h_ones;
-		*((int32_t*)&h_ones) = 15360 + (15360 << 16); // 1.0 as half
-		benchmark_func< half2, BLOCK_SIZE, ELEMENTS_PER_THREAD, FUSION_DEGREE, compute_iterations, false ><<< dimGrid, dimBlock >>>(h_ones, (half2*)cd);
-		kernel_time_mad_hp = finalizeEvents(start, stop);
+		kernel_time_mad_hp = benchmark<total_bench_iterations>([&]() {
+			initializeEvents(&start, &stop);
+			half2 h_ones;
+			*((int32_t*)&h_ones) = 15360 + (15360 << 16); // 1.0 as half
+			benchmark_func< half2, BLOCK_SIZE, ELEMENTS_PER_THREAD, FUSION_DEGREE, compute_iterations, false ><<< dimGrid, dimBlock >>>(h_ones, (half2*)cd);
+			return finalizeEvents(start, stop);
+		});
 	}
 
-	initializeEvents(&start, &stop);
-	benchmark_func< int, BLOCK_SIZE, ELEMENTS_PER_THREAD, FUSION_DEGREE, compute_iterations, true ><<< dimGrid, dimBlock >>>(1, (int*)cd);
-	float kernel_time_mad_int = finalizeEvents(start, stop);
+	float kernel_time_mad_int = benchmark<total_bench_iterations>([&]() {
+		initializeEvents(&start, &stop);
+		benchmark_func< int, BLOCK_SIZE, ELEMENTS_PER_THREAD, FUSION_DEGREE, compute_iterations, true ><<< dimGrid, dimBlock >>>(1, (int*)cd);
+		return finalizeEvents(start, stop);
+	});
 
 	printf("         %4d,   %8.3f,%8.2f,%8.2f,%7.2f,   %8.3f,%8.2f,%8.2f,%7.2f,   %8.3f,%8.2f,%8.2f,%7.2f,  %8.3f,%8.2f,%8.2f,%7.2f\n",
 		compute_iterations,

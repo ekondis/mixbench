@@ -3,6 +3,7 @@ project(mixbench LANGUAGES CXX CUDA)
 
 # Include CUDA header directory in cpp files
 include_directories(${CMAKE_CUDA_TOOLKIT_INCLUDE_DIRECTORIES})
+include_directories("../include")
 
 string(APPEND CMAKE_CUDA_FLAGS " -Xptxas=-v")
 string(APPEND CMAKE_CUDA_FLAGS " -Wno-deprecated-gpu-targets")
