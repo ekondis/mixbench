@@ -10,8 +10,6 @@
 #include <iostream>
 #include "lsyclutil.h"
 
-namespace sycl = cl::sycl;
-
 #define ELEMENTS_PER_THREAD (8)
 #define FUSION_DEGREE (4)
 
