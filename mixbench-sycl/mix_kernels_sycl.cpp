@@ -4,13 +4,12 @@
  * Contact: Elias Konstantinidis <ekondis@gmail.com>
  **/
 
+#include <common.h>
 #include <CL/sycl.hpp>
 #include <chrono>
 #include <iomanip>
 #include <iostream>
 #include "lsyclutil.h"
-
-namespace sycl = cl::sycl;
 
 #define ELEMENTS_PER_THREAD (8)
 #define FUSION_DEGREE (4)
@@ -24,9 +23,7 @@ using half = sycl::half;
 
 template <typename T, typename Enable = void>
 struct MADOperator {
-    T operator()(T a, T b, T c) {
-        return a * b + c;
-    }
+  T operator()(T a, T b, T c) { return a * b + c; }
 };
 
 #ifndef __HIPSYCL__
@@ -190,64 +187,73 @@ void runbench(sycl::queue &queue, double *cd, long size, bool doHalfs, bool doDo
     const sycl::range<1> dimBlock{static_cast<unsigned long>(BLOCK_SIZE)};
     const sycl::range<1> dimGrid{static_cast<unsigned long>(TOTAL_BLOCKS)};
 
+    constexpr auto total_bench_iterations = 3;
+
     // floating point part (single prec)
-    time_point tp_start_compute = initializeEvents();
-    auto ev_exec_sp = queue.submit([&](sycl::handler &cgh) {
+    auto kernel_time_mad_sp = benchmark<total_bench_iterations>([&]() {
+      time_point tp_start_compute = initializeEvents();
+      auto ev_exec = queue.submit([&](sycl::handler& cgh) {
         cgh.parallel_for<class krn_float<compute_iterations>>(
             sycl::nd_range<1>(dimGrid * dimBlock, dimBlock),
-            [=](sycl::nd_item<1> item_ct1)
-            {
-                benchmark_func<float, ELEMENTS_PER_THREAD, FUSION_DEGREE, compute_iterations>(
-                    -1.0f, (float *)cd, item_ct1);
+            [=](sycl::nd_item<1> item_ct1) {
+              benchmark_func<float, ELEMENTS_PER_THREAD, FUSION_DEGREE,
+                             compute_iterations>(-1.0f, (float*)cd, item_ct1);
             });
+      });
+      return finalizeEvents(use_os_timer, ev_exec, tp_start_compute);
     });
-    auto kernel_time_mad_sp = finalizeEvents(use_os_timer, ev_exec_sp, tp_start_compute);
 
     // floating point part (double prec)
     double kernel_time_mad_dp = 0.;
     if (doDoubles) {
-        tp_start_compute = initializeEvents();
-        auto ev_exec_dp = queue.submit([&](sycl::handler &cgh) {
-            cgh.parallel_for<class krn_double<compute_iterations>>(
-                sycl::nd_range<1>(dimGrid * dimBlock, dimBlock),
-                [=](sycl::nd_item<1> item_ct1)
-                {
-                    benchmark_func<double, ELEMENTS_PER_THREAD, FUSION_DEGREE, compute_iterations>(
-                        -1.0, cd, item_ct1);
-                });
+      kernel_time_mad_dp = benchmark<total_bench_iterations>([&]() {
+        time_point tp_start_compute = initializeEvents();
+        auto ev_exec = queue.submit([&](sycl::handler& cgh) {
+          cgh.parallel_for<class krn_double<compute_iterations>>(
+              sycl::nd_range<1>(dimGrid * dimBlock, dimBlock),
+              [=](sycl::nd_item<1> item_ct1) {
+                benchmark_func<double, ELEMENTS_PER_THREAD, FUSION_DEGREE,
+                               compute_iterations>(-1.0, cd, item_ct1);
+              });
         });
-        kernel_time_mad_dp = finalizeEvents(use_os_timer, ev_exec_dp, tp_start_compute);
+        return finalizeEvents(use_os_timer, ev_exec, tp_start_compute);
+      });
     }
 
     double kernel_time_mad_hp = 0.;
     // floating point part (half prec)
     if (doHalfs) {
-        tp_start_compute = initializeEvents();
+      kernel_time_mad_hp = benchmark<total_bench_iterations>([&]() {
+        time_point tp_start_compute = initializeEvents();
         half2 h_ones{-1.0f, -1.0f};
-        auto ev_exec_hp = queue.submit([&](sycl::handler &cgh) {
-            cgh.parallel_for<class krn_half<compute_iterations>>(
-                sycl::nd_range<1>(dimGrid * dimBlock, dimBlock),
-                [=](sycl::nd_item<1> item_ct1)
-                {
-                    benchmark_func<half2, ELEMENTS_PER_THREAD, FUSION_DEGREE, compute_iterations>(
-                        h_ones, reinterpret_cast<half2 *>(cd), item_ct1);
-                });
+        auto ev_exec = queue.submit([&](sycl::handler& cgh) {
+          cgh.parallel_for<class krn_half<compute_iterations>>(
+              sycl::nd_range<1>(dimGrid * dimBlock, dimBlock),
+              [=](sycl::nd_item<1> item_ct1) {
+                benchmark_func<half2, ELEMENTS_PER_THREAD, FUSION_DEGREE,
+                               compute_iterations>(
+                    h_ones, reinterpret_cast<half2*>(cd), item_ct1);
+              });
         });
-        kernel_time_mad_hp = finalizeEvents(use_os_timer, ev_exec_hp, tp_start_compute);
+        return finalizeEvents(use_os_timer, ev_exec, tp_start_compute);
+      });
     }
 
     // integer part
-    tp_start_compute = initializeEvents();
-    auto ev_exec_int = queue.submit([&](sycl::handler &cgh) {
+    auto kernel_time_mad_int = benchmark<total_bench_iterations>([&]() {
+      time_point tp_start_compute = initializeEvents();
+      auto ev_exec = queue.submit([&](sycl::handler& cgh) {
         cgh.parallel_for<class krn_int<compute_iterations>>(
-        sycl::nd_range<1>(dimGrid * dimBlock, dimBlock),
-        [=](sycl::nd_item<1> item_ct1)
-        {
-            benchmark_func<int, ELEMENTS_PER_THREAD, FUSION_DEGREE, compute_iterations>(
-                -1, (int *)cd, item_ct1);   // seed 1 causes unwanted code elimination optimization
-        });
+            sycl::nd_range<1>(dimGrid * dimBlock, dimBlock),
+            [=](sycl::nd_item<1> item_ct1) {
+              benchmark_func<int, ELEMENTS_PER_THREAD, FUSION_DEGREE,
+                             compute_iterations>(
+                  -1, (int*)cd, item_ct1);  // seed 1 causes unwanted code
+                                            // elimination optimization
+            });
+      });
+      return finalizeEvents(use_os_timer, ev_exec, tp_start_compute);
     });
-    auto kernel_time_mad_int = finalizeEvents(use_os_timer, ev_exec_int, tp_start_compute);
 
     const long long computations = (ELEMENTS_PER_THREAD * (long long)compute_grid_size + (2 * ELEMENTS_PER_THREAD * compute_iterations) * (long long)compute_grid_size) * FUSION_DEGREE;
     const long long memoryoperations = size;
