@@ -148,7 +148,7 @@ double finalizeEvents(bool use_host_timer, sycl::event ev_krn_execution, const t
     }
 }
 
-void runbench_warmup(sycl::queue &queue, double *cd, long size) {
+void runbench_warmup(sycl::queue &queue, void *cd, long size) {
     const long reduced_grid_size = size / (ELEMENTS_PER_THREAD) / 128;
     const int BLOCK_SIZE = 256;
     const int TOTAL_REDUCED_BLOCKS = reduced_grid_size / BLOCK_SIZE;
@@ -179,7 +179,7 @@ template <unsigned int>
 class krn_int;
 
 template <unsigned int compute_iterations>
-void runbench(sycl::queue &queue, double *cd, long size, bool doHalfs, bool doDoubles, bool use_os_timer, size_t workgroupsize) {
+void runbench(sycl::queue &queue, void *cd, long size, bool doHalfs, bool doDoubles, bool use_os_timer, size_t workgroupsize) {
     const long compute_grid_size = size / ELEMENTS_PER_THREAD / FUSION_DEGREE;
     const int BLOCK_SIZE = workgroupsize;
     const int TOTAL_BLOCKS = compute_grid_size / BLOCK_SIZE;
@@ -213,7 +213,7 @@ void runbench(sycl::queue &queue, double *cd, long size, bool doHalfs, bool doDo
               sycl::nd_range<1>(dimGrid * dimBlock, dimBlock),
               [=](sycl::nd_item<1> item_ct1) {
                 benchmark_func<double, ELEMENTS_PER_THREAD, FUSION_DEGREE,
-                               compute_iterations>(-1.0, cd, item_ct1);
+                               compute_iterations>(-1.0, reinterpret_cast<double*>(cd), item_ct1);
               });
         });
         return finalizeEvents(use_os_timer, ev_exec, tp_start_compute);
