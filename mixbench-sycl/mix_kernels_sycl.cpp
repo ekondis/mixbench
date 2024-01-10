@@ -148,7 +148,7 @@ double finalizeEvents(bool use_host_timer, sycl::event ev_krn_execution, const t
     }
 }
 
-void runbench_warmup(sycl::queue &queue, double *cd, long size) {
+void runbench_warmup(sycl::queue &queue, void *cd, long size) {
     const long reduced_grid_size = size / (ELEMENTS_PER_THREAD) / 128;
     const int BLOCK_SIZE = 256;
     const int TOTAL_REDUCED_BLOCKS = reduced_grid_size / BLOCK_SIZE;
@@ -179,7 +179,7 @@ template <unsigned int>
 class krn_int;
 
 template <unsigned int compute_iterations>
-void runbench(sycl::queue &queue, double *cd, long size, bool doHalfs, bool doDoubles, bool use_os_timer, size_t workgroupsize) {
+void runbench(sycl::queue &queue, void *cd, long size, bool doHalfs, bool doDoubles, bool use_os_timer, size_t workgroupsize) {
     const long compute_grid_size = size / ELEMENTS_PER_THREAD / FUSION_DEGREE;
     const int BLOCK_SIZE = workgroupsize;
     const int TOTAL_BLOCKS = compute_grid_size / BLOCK_SIZE;
@@ -197,7 +197,7 @@ void runbench(sycl::queue &queue, double *cd, long size, bool doHalfs, bool doDo
             sycl::nd_range<1>(dimGrid * dimBlock, dimBlock),
             [=](sycl::nd_item<1> item_ct1) {
               benchmark_func<float, ELEMENTS_PER_THREAD, FUSION_DEGREE,
-                             compute_iterations>(-1.0f, (float*)cd, item_ct1);
+                             compute_iterations>((float)-1.0f, (float*)cd, item_ct1);
             });
       });
       return finalizeEvents(use_os_timer, ev_exec, tp_start_compute);
@@ -213,7 +213,7 @@ void runbench(sycl::queue &queue, double *cd, long size, bool doHalfs, bool doDo
               sycl::nd_range<1>(dimGrid * dimBlock, dimBlock),
               [=](sycl::nd_item<1> item_ct1) {
                 benchmark_func<double, ELEMENTS_PER_THREAD, FUSION_DEGREE,
-                               compute_iterations>(-1.0, cd, item_ct1);
+                               compute_iterations>((double)-1.0, (double*)cd, item_ct1);
               });
         });
         return finalizeEvents(use_os_timer, ev_exec, tp_start_compute);
@@ -232,7 +232,7 @@ void runbench(sycl::queue &queue, double *cd, long size, bool doHalfs, bool doDo
               [=](sycl::nd_item<1> item_ct1) {
                 benchmark_func<half2, ELEMENTS_PER_THREAD, FUSION_DEGREE,
                                compute_iterations>(
-                    h_ones, reinterpret_cast<half2*>(cd), item_ct1);
+                    (half2)h_ones, (half2*)(cd), item_ct1);
               });
         });
         return finalizeEvents(use_os_timer, ev_exec, tp_start_compute);
@@ -248,8 +248,8 @@ void runbench(sycl::queue &queue, double *cd, long size, bool doHalfs, bool doDo
             [=](sycl::nd_item<1> item_ct1) {
               benchmark_func<int, ELEMENTS_PER_THREAD, FUSION_DEGREE,
                              compute_iterations>(
-                  -1, (int*)cd, item_ct1);  // seed 1 causes unwanted code
-                                            // elimination optimization
+                  (int)-1, (int*)cd, item_ct1);  // seed 1 causes unwanted code
+                                                 // elimination optimization
             });
       });
       return finalizeEvents(use_os_timer, ev_exec, tp_start_compute);
@@ -286,12 +286,12 @@ void runbench(sycl::queue &queue, double *cd, long size, bool doHalfs, bool doDo
 
 // Variadic template helper to ease multiple configuration invocations
 template <unsigned int compute_iterations>
-void runbench_range(sycl::queue &queue, double *cd, long size, bool doHalfs, bool doDoubles, bool use_os_timer, size_t workgroupsize) {
+void runbench_range(sycl::queue &queue, void *cd, long size, bool doHalfs, bool doDoubles, bool use_os_timer, size_t workgroupsize) {
     runbench<compute_iterations>(queue, cd, size, doHalfs, doDoubles, use_os_timer, workgroupsize);
 }
 
 template <unsigned int j1, unsigned int j2, unsigned int... Args>
-void runbench_range(sycl::queue &queue, double *cd, long size, bool doHalfs, bool doDoubles, bool use_os_timer, size_t workgroupsize) {
+void runbench_range(sycl::queue &queue, void *cd, long size, bool doHalfs, bool doDoubles, bool use_os_timer, size_t workgroupsize) {
     runbench_range<j1>(queue, cd, size, doHalfs, doDoubles, use_os_timer, workgroupsize);
     runbench_range<j2, Args...>(queue, cd, size, doHalfs, doDoubles, use_os_timer, workgroupsize);
 }
