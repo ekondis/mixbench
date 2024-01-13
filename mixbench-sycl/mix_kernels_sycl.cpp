@@ -286,17 +286,17 @@ void runbench(sycl::queue &queue, void *cd, long size, bool doHalfs, bool doDoub
 
 // Variadic template helper to ease multiple configuration invocations
 template <unsigned int compute_iterations>
-void runbench_range(sycl::queue &queue, double *cd, long size, bool doHalfs, bool doDoubles, bool use_os_timer, size_t workgroupsize) {
+void runbench_range(sycl::queue &queue, void *cd, long size, bool doHalfs, bool doDoubles, bool use_os_timer, size_t workgroupsize) {
     runbench<compute_iterations>(queue, cd, size, doHalfs, doDoubles, use_os_timer, workgroupsize);
 }
 
 template <unsigned int j1, unsigned int j2, unsigned int... Args>
-void runbench_range(sycl::queue &queue, double *cd, long size, bool doHalfs, bool doDoubles, bool use_os_timer, size_t workgroupsize) {
+void runbench_range(sycl::queue &queue, void *cd, long size, bool doHalfs, bool doDoubles, bool use_os_timer, size_t workgroupsize) {
     runbench_range<j1>(queue, cd, size, doHalfs, doDoubles, use_os_timer, workgroupsize);
     runbench_range<j2, Args...>(queue, cd, size, doHalfs, doDoubles, use_os_timer, workgroupsize);
 }
 
-void mixbenchGPU(const sycl::device &dev, double *c, long size, bool use_os_timer, size_t workgroupsize) {
+void mixbenchGPU(const sycl::device &dev, void *c, long size, bool use_os_timer, size_t workgroupsize) {
     const sycl::property_list queue_prop_list = use_os_timer ? sycl::property_list{} : sycl::property_list{sycl::property::queue::enable_profiling()};
     sycl::queue queue{dev, queue_prop_list};
 

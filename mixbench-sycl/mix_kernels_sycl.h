@@ -7,6 +7,6 @@
 #ifndef _MIX_KERNELS_SYCL_H_
 #define _MIX_KERNELS_SYCL_H_
 
-void mixbenchGPU(const sycl::device&, double*, long, bool, size_t);
+void mixbenchGPU(const sycl::device&, void*, long, bool, size_t);
 
 #endif
