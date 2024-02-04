@@ -39,6 +39,8 @@ static inline int _ConvertSMVer2Cores(int major, int minor) {
       switch (minor) {
         case 0:
           return 64;
+        default:
+          return 128;
       }
     case 7:
       return 64;
