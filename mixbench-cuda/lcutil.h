@@ -22,21 +22,38 @@
 
 #define FRACTION_CEILING(numerator, denominator) ((numerator+denominator-1)/(denominator))
 
-static inline int _ConvertSMVer2Cores(int major, int minor){
-	switch(major){
-		case 1:  return 8;
-		case 2:  switch(minor){
-			case 1:  return 48;
-			default: return 32;
-		}
-		case 3:  return 192;
-		case 6: switch(minor){
-			case 0:  return 64;
-			default: return 128;
-		}
-		case 7:  return 64;
-		default: return 128;
-	}
+static inline int _ConvertSMVer2Cores(int major, int minor) {
+  switch (major) {
+    case 1:
+      return 8;
+    case 2:
+      switch (minor) {
+        case 1:
+          return 48;
+        default:
+          return 32;
+      }
+    case 3:
+      return 192;
+    case 6:
+      switch (minor) {
+        case 0:
+          return 64;
+        default:
+          return 128;
+      }
+    case 7:
+      return 64;
+    case 8:
+      switch (minor) {
+        case 0:
+          return 64;
+        default:
+          return 128;
+      }
+    default:
+      return 128;
+  }
 }
 
 static inline bool IsFP16Supported(void){
