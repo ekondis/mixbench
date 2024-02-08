@@ -32,7 +32,6 @@ template <typename T>
 struct MADOperator<T, typename std::enable_if_t<sycl::detail::is_genfloat<T>::value>> {
     T operator()(T a, T b, T c) {
         return sycl::mad(a, b, c);
-        //return cl::sycl::fma(a, b, c);
     }
 };
 #else

@@ -1,5 +1,6 @@
 /**
- * mix_kernels_sycl.h: This file is part of the mixbench GPU micro-benchmark suite.
+ * mix_kernels_sycl.h: This file is part of the mixbench GPU micro-benchmark
+ *suite.
  *
  * Contact: Elias Konstantinidis <ekondis@gmail.com>
  **/
