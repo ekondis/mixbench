@@ -17,7 +17,7 @@ Note: `per_kernel` mode facilitates cases where the device lacks support for com
 
 If you are building under Windows/DPC++ try:
 ```
-cmake ..\mixbench-sycl -T "Intel(R) oneAPI DPC++ Compiler"  -D CMAKE_CXX_COMPILER=dpcpp -D CMAKE_CXX_FLAGS="-fsycl-device-code-split=per_kernel /EHsc"
+cmake ..\mixbench-sycl -T "Intel(R) oneAPI DPC++ Compiler 2024"  -D CMAKE_CXX_COMPILER=icpx -D CMAKE_CXX_FLAGS="-fsycl-device-code-split=per_kernel /EHsc"
 ```
 Note: Adjust the platform toolset argument (*"Intel(R) oneAPI DPC++ Compiler"*) to whatever required, e.g. *"Intel(R) oneAPI DPC++ Compiler 2022"* for DPC++ 2022.1.
 
