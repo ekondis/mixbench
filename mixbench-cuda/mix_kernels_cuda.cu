@@ -213,6 +213,8 @@ extern "C" void mixbenchGPU(double *c, long size){
 	runbench<128>(cd, size, doHalfs);
 	runbench<192>(cd, size, doHalfs);
 	runbench<256>(cd, size, doHalfs);
+	runbench<512>(cd, size, doHalfs);
+	runbench<1024>(cd, size, doHalfs);
 
 	printf("--------------------------------------------------------------------------------------------------------------------------------------------------------------------\n");
 
