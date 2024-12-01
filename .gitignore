@@ -28,13 +28,6 @@
 *.x86_64
 *.hex
 
-# Specific executables
-mixbench-cuda
-mixbench-hip
-mixbench-ocl
-mixbench-sycl
-mixbench-cpu
-
 # Debug files
 *.dSYM/
 
