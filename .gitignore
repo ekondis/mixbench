@@ -39,6 +39,7 @@ mixbench-cpu
 *.dSYM/
 
 # Build folders
+build*/
 mixbench-cuda/build*/
 mixbench-hip/build*/
 mixbench-opencl/build*/

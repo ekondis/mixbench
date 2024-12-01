@@ -9,7 +9,7 @@ ADD . /root/mixbench-cpu
 
 WORKDIR /root/mixbench-cpu
 
-RUN cmake -DCMAKE_BUILD_TYPE=RelWithDebInfo -DCMAKE_CXX_FLAGS="-march=native -funroll-loops" -B build-test ./ 
-RUN cmake --build build-test
+RUN cmake -DCMAKE_BUILD_TYPE=RelWithDebInfo -DCMAKE_CXX_FLAGS="-march=native -funroll-loops" -B build-docker ./
+RUN cmake --build build-docker
 
-CMD /root/mixbench-cpu/build/mixbench-cpu
+CMD /root/mixbench-cpu/build-docker/mixbench-cpu

@@ -32,7 +32,6 @@ template <typename T>
 struct MADOperator<T, typename std::enable_if_t<sycl::detail::is_genfloat<T>::value>> {
     T operator()(T a, T b, T c) {
         return sycl::mad(a, b, c);
-        //return cl::sycl::fma(a, b, c);
     }
 };
 #else
@@ -148,7 +147,7 @@ double finalizeEvents(bool use_host_timer, sycl::event ev_krn_execution, const t
     }
 }
 
-void runbench_warmup(sycl::queue &queue, double *cd, long size) {
+void runbench_warmup(sycl::queue &queue, void *cd, long size) {
     const long reduced_grid_size = size / (ELEMENTS_PER_THREAD) / 128;
     const int BLOCK_SIZE = 256;
     const int TOTAL_REDUCED_BLOCKS = reduced_grid_size / BLOCK_SIZE;
@@ -179,7 +178,7 @@ template <unsigned int>
 class krn_int;
 
 template <unsigned int compute_iterations>
-void runbench(sycl::queue &queue, double *cd, long size, bool doHalfs, bool doDoubles, bool use_os_timer, size_t workgroupsize) {
+void runbench(sycl::queue &queue, void *cd, long size, bool doHalfs, bool doDoubles, bool use_os_timer, size_t workgroupsize) {
     const long compute_grid_size = size / ELEMENTS_PER_THREAD / FUSION_DEGREE;
     const int BLOCK_SIZE = workgroupsize;
     const int TOTAL_BLOCKS = compute_grid_size / BLOCK_SIZE;
@@ -213,7 +212,7 @@ void runbench(sycl::queue &queue, double *cd, long size, bool doHalfs, bool doDo
               sycl::nd_range<1>(dimGrid * dimBlock, dimBlock),
               [=](sycl::nd_item<1> item_ct1) {
                 benchmark_func<double, ELEMENTS_PER_THREAD, FUSION_DEGREE,
-                               compute_iterations>(-1.0, cd, item_ct1);
+                               compute_iterations>(-1.0, reinterpret_cast<double*>(cd), item_ct1);
               });
         });
         return finalizeEvents(use_os_timer, ev_exec, tp_start_compute);
@@ -286,17 +285,17 @@ void runbench(sycl::queue &queue, double *cd, long size, bool doHalfs, bool doDo
 
 // Variadic template helper to ease multiple configuration invocations
 template <unsigned int compute_iterations>
-void runbench_range(sycl::queue &queue, double *cd, long size, bool doHalfs, bool doDoubles, bool use_os_timer, size_t workgroupsize) {
+void runbench_range(sycl::queue &queue, void *cd, long size, bool doHalfs, bool doDoubles, bool use_os_timer, size_t workgroupsize) {
     runbench<compute_iterations>(queue, cd, size, doHalfs, doDoubles, use_os_timer, workgroupsize);
 }
 
 template <unsigned int j1, unsigned int j2, unsigned int... Args>
-void runbench_range(sycl::queue &queue, double *cd, long size, bool doHalfs, bool doDoubles, bool use_os_timer, size_t workgroupsize) {
+void runbench_range(sycl::queue &queue, void *cd, long size, bool doHalfs, bool doDoubles, bool use_os_timer, size_t workgroupsize) {
     runbench_range<j1>(queue, cd, size, doHalfs, doDoubles, use_os_timer, workgroupsize);
     runbench_range<j2, Args...>(queue, cd, size, doHalfs, doDoubles, use_os_timer, workgroupsize);
 }
 
-void mixbenchGPU(const sycl::device &dev, double *c, long size, bool use_os_timer, size_t workgroupsize) {
+void mixbenchGPU(const sycl::device &dev, void *c, long size, bool use_os_timer, size_t workgroupsize) {
     const sycl::property_list queue_prop_list = use_os_timer ? sycl::property_list{} : sycl::property_list{sycl::property::queue::enable_profiling()};
     sycl::queue queue{dev, queue_prop_list};
 
