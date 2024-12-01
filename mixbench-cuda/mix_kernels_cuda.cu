@@ -101,8 +101,6 @@ void runbench_warmup(double *cd, long size){
 	CUDA_SAFE_CALL( cudaDeviceSynchronize() );
 }
 
-int out_config = 1;
-
 template<unsigned int compute_iterations>
 void runbench(double *cd, long size, bool doHalfs){
 	const long compute_grid_size = size/ELEMENTS_PER_THREAD/FUSION_DEGREE;
