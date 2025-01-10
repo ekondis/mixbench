@@ -16,6 +16,8 @@
 
 const auto base_omp_get_max_threads = omp_get_max_threads();
 
+using benchmark_clock = std::chrono::steady_clock;
+
 #ifdef BASELINE_IMPL
 
 template <typename Element, size_t compute_iterations, size_t static_chunk_size>
@@ -104,20 +106,20 @@ __attribute__((optimize("unroll-loops"))) size_t bench(size_t len,
 }
 
 auto runbench_warmup(double* c, size_t size) {
-  auto timer_start = std::chrono::high_resolution_clock::now();
+  auto timer_start = benchmark_clock::now();
 
   bench<double, 16>(size, 1., -1., c);
 
-  auto timer_duration = std::chrono::high_resolution_clock::now() - timer_start;
+  auto timer_duration = benchmark_clock::now() - timer_start;
   return std::chrono::duration_cast<std::chrono::microseconds>(timer_duration)
       .count();
 }
 
 template <typename Op>
 auto measure_operation(Op op) {
-  auto timer_start = std::chrono::high_resolution_clock::now();
+  auto timer_start = benchmark_clock::now();
   op();
-  auto timer_duration = std::chrono::high_resolution_clock::now() - timer_start;
+  auto timer_duration = benchmark_clock::now() - timer_start;
   return std::chrono::duration_cast<std::chrono::microseconds>(timer_duration)
              .count() /
          1000.;
