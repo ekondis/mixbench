@@ -67,15 +67,18 @@ static inline bool IsFP16Supported(void){
 static inline void GetDevicePeakInfo(double *aGIPS, double *aGBPS, cudaDeviceProp *aDeviceProp = NULL){
 	cudaDeviceProp deviceProp;
 	int current_device;
+	int clockRate, memoryClockRate;
 	if( aDeviceProp )
 		deviceProp = *aDeviceProp;
 	else{
 		CUDA_SAFE_CALL( cudaGetDevice(&current_device) );
 		CUDA_SAFE_CALL( cudaGetDeviceProperties(&deviceProp, current_device) );
+		CUDA_SAFE_CALL( cudaDeviceGetAttribute(&clockRate, cudaDevAttrClockRate, current_device) );
+		CUDA_SAFE_CALL( cudaDeviceGetAttribute(&memoryClockRate, cudaDevAttrMemoryClockRate, current_device) );
 	}
 	const int TotalSPs = _ConvertSMVer2Cores(deviceProp.major, deviceProp.minor)*deviceProp.multiProcessorCount;
-	*aGIPS = 1000.0 * deviceProp.clockRate * TotalSPs / (1000.0 * 1000.0 * 1000.0);  // Giga instructions/sec
-	*aGBPS = 2.0 * (double)deviceProp.memoryClockRate * 1000.0 * (double)deviceProp.memoryBusWidth / 8.0;
+	*aGIPS = 1000.0 * clockRate * TotalSPs / (1000.0 * 1000.0 * 1000.0);  // Giga instructions/sec
+	*aGBPS = 2.0 * (double)memoryClockRate * 1000.0 * (double)deviceProp.memoryBusWidth / 8.0;
 }
 
 static inline cudaDeviceProp GetDeviceProperties(void){
@@ -90,14 +93,17 @@ static inline cudaDeviceProp GetDeviceProperties(void){
 static void StoreDeviceInfo(FILE *fout){
 	cudaDeviceProp deviceProp;
 	int current_device, driver_version;
+	int clockRate, memoryClockRate;
 	CUDA_SAFE_CALL( cudaGetDevice(&current_device) );
 	CUDA_SAFE_CALL( cudaGetDeviceProperties(&deviceProp, current_device) );
 	CUDA_SAFE_CALL( cudaDriverGetVersion(&driver_version) );
+	CUDA_SAFE_CALL( cudaDeviceGetAttribute(&clockRate, cudaDevAttrClockRate, current_device) );
+	CUDA_SAFE_CALL( cudaDeviceGetAttribute(&memoryClockRate, cudaDevAttrMemoryClockRate, current_device) );
 	fprintf(fout, "------------------------ Device specifications ------------------------\n");
 	fprintf(fout, "Device:              %s\n", deviceProp.name);
 	fprintf(fout, "CUDA driver version: %d.%d\n", driver_version/1000, driver_version%1000);
-	fprintf(fout, "GPU clock rate:      %d MHz\n", deviceProp.clockRate/1000);
-	fprintf(fout, "Memory clock rate:   %d MHz\n", deviceProp.memoryClockRate/1000/2);
+	fprintf(fout, "GPU clock rate:      %d MHz\n", clockRate/1000);
+	fprintf(fout, "Memory clock rate:   %d MHz\n", memoryClockRate/1000/2);
 	fprintf(fout, "Memory bus width:    %d bits\n", deviceProp.memoryBusWidth);
 	fprintf(fout, "WarpSize:            %d\n", deviceProp.warpSize);
 	fprintf(fout, "L2 cache size:       %d KB\n", deviceProp.l2CacheSize/1024);

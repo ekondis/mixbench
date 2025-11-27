@@ -97,7 +97,7 @@ void runbench_warmup(double *cd, long size){
 
 	benchmark_func< short, BLOCK_SIZE, ELEMENTS_PER_THREAD, FUSION_DEGREE, 0, true ><<< dimReducedGrid, dimBlock >>>((short)1, (short*)cd);
 	CUDA_SAFE_CALL( cudaGetLastError() );
-	CUDA_SAFE_CALL( cudaThreadSynchronize() );
+	CUDA_SAFE_CALL( cudaDeviceSynchronize() );
 }
 
 int out_config = 1;
@@ -172,7 +172,7 @@ extern "C" void mixbenchGPU(double *c, long size){
 	CUDA_SAFE_CALL( cudaMemset(cd, 0, size*sizeof(double)) );  // initialize to zeros
 
 	// Synchronize in order to wait for memory operations to finish
-	CUDA_SAFE_CALL( cudaThreadSynchronize() );
+	CUDA_SAFE_CALL( cudaDeviceSynchronize() );
 
 	printf("----------------------------------------------------------------------------- CSV data -----------------------------------------------------------------------------\n");
 	printf("Experiment ID, Single Precision ops,,,,              Double precision ops,,,,              Half precision ops,,,,                Integer operations,,, \n");
