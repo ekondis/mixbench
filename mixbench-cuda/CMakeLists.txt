@@ -7,7 +7,7 @@ include_directories(${CMAKE_CUDA_TOOLKIT_INCLUDE_DIRECTORIES})
 string(APPEND CMAKE_CUDA_FLAGS " -Xptxas=-v")
 string(APPEND CMAKE_CUDA_FLAGS " -Wno-deprecated-gpu-targets")
 string(APPEND CMAKE_CUDA_FLAGS " --cudart=static")
-string(APPEND CMAKE_CUDA_FLAGS " -gencode arch=compute_52,code=[sm_52,compute_52] -gencode arch=compute_61,code=compute_61")
+string(APPEND CMAKE_CUDA_FLAGS " -arch=native")
 
 # Get version info from git tag
 execute_process(COMMAND git describe --tags --always
