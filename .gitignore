@@ -35,6 +35,13 @@ mixbench-ocl
 mixbench-sycl
 mixbench-cpu
 
+# But not the code itself
+!mixbench-cuda/
+!mixbench-hip/
+!mixbench-ocl/
+!mixbench-sycl/
+!mixbench-cpu/
+
 # Debug files
 *.dSYM/
 
