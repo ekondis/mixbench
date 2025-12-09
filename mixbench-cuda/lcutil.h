@@ -64,21 +64,20 @@ static inline bool IsFP16Supported(void){
 	return deviceProp.major>5 || (deviceProp.major == 5 && deviceProp.minor == 3);
 }
 
-static inline void GetDevicePeakInfo(double *aGIPS, double *aGBPS, cudaDeviceProp *aDeviceProp = NULL){
-	cudaDeviceProp deviceProp;
+static inline void GetDevicePeakInfo(double *aGIPS, double *aGBPS){
 	int current_device;
-	int clockRate, memoryClockRate;
-	if( aDeviceProp )
-		deviceProp = *aDeviceProp;
-	else{
-		CUDA_SAFE_CALL( cudaGetDevice(&current_device) );
-		CUDA_SAFE_CALL( cudaGetDeviceProperties(&deviceProp, current_device) );
-		CUDA_SAFE_CALL( cudaDeviceGetAttribute(&clockRate, cudaDevAttrClockRate, current_device) );
-		CUDA_SAFE_CALL( cudaDeviceGetAttribute(&memoryClockRate, cudaDevAttrMemoryClockRate, current_device) );
-	}
-	const int TotalSPs = _ConvertSMVer2Cores(deviceProp.major, deviceProp.minor)*deviceProp.multiProcessorCount;
+	int major, minor;
+	int memoryBusWidth, clockRate, memoryClockRate, multiProcessorCount;
+	CUDA_SAFE_CALL( cudaGetDevice(&current_device) );
+	CUDA_SAFE_CALL( cudaDeviceGetAttribute(&major, cudaDevAttrComputeCapabilityMajor, current_device) );
+	CUDA_SAFE_CALL( cudaDeviceGetAttribute(&minor, cudaDevAttrComputeCapabilityMajor, current_device) );
+	CUDA_SAFE_CALL( cudaDeviceGetAttribute(&multiProcessorCount, cudaDevAttrMultiProcessorCount, current_device) );
+	CUDA_SAFE_CALL( cudaDeviceGetAttribute(&memoryBusWidth, cudaDevAttrGlobalMemoryBusWidth, current_device) );
+	CUDA_SAFE_CALL( cudaDeviceGetAttribute(&clockRate, cudaDevAttrClockRate, current_device) );
+	CUDA_SAFE_CALL( cudaDeviceGetAttribute(&memoryClockRate, cudaDevAttrMemoryClockRate, current_device) );
+	const int TotalSPs = _ConvertSMVer2Cores(major, minor)*multiProcessorCount;
 	*aGIPS = 1000.0 * clockRate * TotalSPs / (1000.0 * 1000.0 * 1000.0);  // Giga instructions/sec
-	*aGBPS = 2.0 * (double)memoryClockRate * 1000.0 * (double)deviceProp.memoryBusWidth / 8.0;
+	*aGBPS = 2.0 * (double)memoryClockRate * 1000.0 * (double)memoryBusWidth / 8.0;
 }
 
 static inline cudaDeviceProp GetDeviceProperties(void){
@@ -113,7 +112,7 @@ static void StoreDeviceInfo(FILE *fout){
 	const int TotalSPs = _ConvertSMVer2Cores(deviceProp.major, deviceProp.minor)*deviceProp.multiProcessorCount;
 	fprintf(fout, "Total SPs:           %d (%d MPs x %d SPs/MP)\n", TotalSPs, deviceProp.multiProcessorCount, _ConvertSMVer2Cores(deviceProp.major, deviceProp.minor));
 	double InstrThroughput, MemBandwidth;
-	GetDevicePeakInfo(&InstrThroughput, &MemBandwidth, &deviceProp);
+	GetDevicePeakInfo(&InstrThroughput, &MemBandwidth);
 	fprintf(fout, "Compute throughput:  %.2f GFlops (theoretical single precision FMAs)\n", 2.0*InstrThroughput);
 	fprintf(fout, "Memory bandwidth:    %.2f GB/sec\n", MemBandwidth/(1000.0*1000.0*1000.0));
 	fprintf(fout, "-----------------------------------------------------------------------\n");
