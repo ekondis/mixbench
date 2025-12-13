@@ -70,7 +70,7 @@ static inline void GetDevicePeakInfo(double *aGIPS, double *aGBPS){
 	int memoryBusWidth, clockRate, memoryClockRate, multiProcessorCount;
 	CUDA_SAFE_CALL( cudaGetDevice(&current_device) );
 	CUDA_SAFE_CALL( cudaDeviceGetAttribute(&major, cudaDevAttrComputeCapabilityMajor, current_device) );
-	CUDA_SAFE_CALL( cudaDeviceGetAttribute(&minor, cudaDevAttrComputeCapabilityMajor, current_device) );
+	CUDA_SAFE_CALL( cudaDeviceGetAttribute(&minor, cudaDevAttrComputeCapabilityMinor, current_device) );
 	CUDA_SAFE_CALL( cudaDeviceGetAttribute(&multiProcessorCount, cudaDevAttrMultiProcessorCount, current_device) );
 	CUDA_SAFE_CALL( cudaDeviceGetAttribute(&memoryBusWidth, cudaDevAttrGlobalMemoryBusWidth, current_device) );
 	CUDA_SAFE_CALL( cudaDeviceGetAttribute(&clockRate, cudaDevAttrClockRate, current_device) );
