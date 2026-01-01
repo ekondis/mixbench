@@ -11,7 +11,6 @@
 #include <chrono>
 #include <iomanip>
 #include <iostream>
-#include <memory>
 #include <vector>
 
 const auto base_omp_get_max_threads = omp_get_max_threads();
