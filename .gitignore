@@ -55,3 +55,6 @@ mixbench-cpu/build*/
 
 # Other
 version_info.h
+
+# VS Code IDE
+.vscode/
