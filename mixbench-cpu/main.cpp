@@ -7,6 +7,7 @@
 #include <omp.h>
 
 #include <chrono>
+#include <cstddef>
 #include <cstring>
 #include <iostream>
 #include <memory>
@@ -64,15 +65,15 @@ int main(int argc, char* argv[]) {
 
   const size_t VEC_WIDTH = 1024 * 1024 * args.vecwidth;
 
-  std::unique_ptr<double[]> c;
+  std::unique_ptr<std::byte[]> c;
 
-  c.reset(new (std::align_val_t(64)) double[VEC_WIDTH]);
+  c.reset(new (std::align_val_t(64)) std::byte[VEC_WIDTH * sizeof(double)]);
 
   std::cout << "Working memory size: " << args.vecwidth * sizeof(double) << "MB"
             << std::endl;
   std::cout << "Total threads: " << hardware_concurrency << std::endl;
 
-  mixbenchCPU(c.get(), VEC_WIDTH);
+  mixbenchCPU(c.get(), VEC_WIDTH * sizeof(double));
 
   return 0;
 }

@@ -8,6 +8,6 @@
 #ifndef _MIX_KERNELS_CPU_H_
 #define _MIX_KERNELS_CPU_H_
 
-void mixbenchCPU(double*, size_t);
+void mixbenchCPU(void*, size_t);
 
 #endif
