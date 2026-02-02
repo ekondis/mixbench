@@ -191,29 +191,29 @@ void runbench(void* c, size_t size) {
 
   // floating point part (single prec)
   // initialize memory to avoid UB
-  new (c) float[cs.element_count<float>()];
+  float *c_as_float = new (c) float[cs.element_count<float>()];
   auto kernel_time_mad_sp = benchmark_omp([&] {
     return measure_operation([&] {
       bench<float, compute_iterations>(cs.element_count<float>(), 1.f, -1.f,
-                                       static_cast<float*>(c));
+                                       c_as_float);
     });
   });
 
   // floating point part (double prec)
-  new (c) double[cs.element_count<double>()];
+  double *c_as_double = new (c) double[cs.element_count<double>()];
   auto kernel_time_mad_dp = benchmark_omp([&] {
     return measure_operation([&] {
       bench<double, compute_iterations>(cs.element_count<double>(), 1., -1.,
-                                        static_cast<double*>(c));
+                                        c_as_double);
     });
   });
 
   // integer part
-  new (c) int[cs.element_count<int>()];
+  int *c_as_int = new (c) int[cs.element_count<int>()];
   auto kernel_time_mad_int = benchmark_omp([&] {
     return measure_operation([&] {
       bench<int, compute_iterations>(cs.element_count<int>(), 1, -1,
-                                     static_cast<int*>(c));
+                                     c_as_int);
     });
   });
 
