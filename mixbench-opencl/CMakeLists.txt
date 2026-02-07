@@ -1,4 +1,4 @@
-cmake_minimum_required(VERSION 3.7 FATAL_ERROR)
+cmake_minimum_required(VERSION 3.10 FATAL_ERROR)
 project(mixbench-ocl LANGUAGES CXX)
 
 find_package(OpenCL REQUIRED)

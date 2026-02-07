@@ -11,7 +11,6 @@
 #include <chrono>
 #include <iomanip>
 #include <iostream>
-#include <memory>
 #include <vector>
 
 const auto base_omp_get_max_threads = omp_get_max_threads();
@@ -105,10 +104,14 @@ __attribute__((optimize("unroll-loops"))) size_t bench(size_t len,
   return len;
 }
 
-auto runbench_warmup(double* c, size_t size) {
+auto runbench_warmup(void* c, size_t size) {
+  const int num_elements = size / sizeof(double);
   auto timer_start = benchmark_clock::now();
 
-  bench<double, 16>(size, 1., -1., c);
+  // initialize memory to avoid UB
+  double* ptr = new (c) double[num_elements];
+
+  bench<double, 16>(num_elements, 1., -1., ptr);
 
   auto timer_duration = benchmark_clock::now() - timer_start;
   return std::chrono::duration_cast<std::chrono::microseconds>(timer_duration)
@@ -170,8 +173,7 @@ class ComputeSpace {
             * compute_iterations_ /* Core loop iteration count */
             * 2                   /* Flops per core loop iteration */
             * 1                   /* FMAs in the inner most loop */
-        + total_elements - 1      /* Due to sum reduction */
-        ;
+        + total_elements - 1;     /* Due to sum reduction */
     return computations;
   }
 
@@ -184,29 +186,34 @@ class ComputeSpace {
 };
 
 template <unsigned int compute_iterations>
-void runbench(double* c, size_t size) {
-  ComputeSpace cs{size * sizeof(double), compute_iterations};
+void runbench(void* c, size_t size) {
+  ComputeSpace cs{size, compute_iterations};
 
   // floating point part (single prec)
+  // initialize memory to avoid UB
+  float *c_as_float = new (c) float[cs.element_count<float>()];
   auto kernel_time_mad_sp = benchmark_omp([&] {
     return measure_operation([&] {
       bench<float, compute_iterations>(cs.element_count<float>(), 1.f, -1.f,
-                                       reinterpret_cast<float*>(c));
+                                       c_as_float);
     });
   });
 
   // floating point part (double prec)
+  double *c_as_double = new (c) double[cs.element_count<double>()];
   auto kernel_time_mad_dp = benchmark_omp([&] {
     return measure_operation([&] {
-      bench<double, compute_iterations>(cs.element_count<double>(), 1., -1., c);
+      bench<double, compute_iterations>(cs.element_count<double>(), 1., -1.,
+                                        c_as_double);
     });
   });
 
   // integer part
+  int *c_as_int = new (c) int[cs.element_count<int>()];
   auto kernel_time_mad_int = benchmark_omp([&] {
     return measure_operation([&] {
       bench<int, compute_iterations>(cs.element_count<int>(), 1, -1,
-                                     reinterpret_cast<int*>(c));
+                                     c_as_int);
     });
   });
 
@@ -256,21 +263,21 @@ void runbench(double* c, size_t size) {
 
 // Variadic template helper to ease multiple configuration invocations
 template <unsigned int compute_iterations>
-void runbench_range(double* cd, long size) {
+void runbench_range(void* cd, size_t size) {
   runbench<compute_iterations>(cd, size);
 }
 
 template <unsigned int j1, unsigned int j2, unsigned int... Args>
-void runbench_range(double* cd, long size) {
+void runbench_range(void* cd, size_t size) {
   runbench_range<j1>(cd, size);
   runbench_range<j2, Args...>(cd, size);
 }
 
-void mixbenchCPU(double* c, size_t size) {
-// Initialize data to zeros on memory by respecting 1st touch policy
+void mixbenchCPU(void* c, size_t size) {
+  // Initialize data to zeros on memory by respecting 1st touch policy
 #pragma omp parallel for schedule(static)
-  for (size_t i = 0; i < size; i++)
-    c[i] = 0.0;
+  for (size_t i = 0; i < size / sizeof(int); i++)
+    ((int*)c)[i] = 0;
 
   std::cout << "--------------------------------------------"
                "-------------- CSV data "
