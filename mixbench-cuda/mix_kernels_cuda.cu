@@ -145,7 +145,7 @@ void runbench(double *cd, long size, bool doHalfs){
 		return finalizeEvents(start, stop);
 	});
 
-	printf("         %4d,   %8.3f,%8.2f,%8.2f,%7.2f,   %8.3f,%8.2f,%8.2f,%7.2f,   %8.3f,%8.2f,%8.2f,%7.2f,  %8.3f,%8.2f,%8.2f,%7.2f\n",
+	printf("         %4d,   %8.3f,%8.2f,%9.2f,%7.2f,   %8.3f,%8.2f,%9.2f,%7.2f,   %8.3f,%8.2f,%9.2f,%7.2f,  %8.3f,%8.2f,%9.2f,%7.2f\n",
 		compute_iterations,
 		((double)computations)/((double)memoryoperations*sizeof(float)),
 		kernel_time_mad_sp,
@@ -184,9 +184,9 @@ extern "C" void mixbenchGPU(double *c, long size){
 	// Synchronize in order to wait for memory operations to finish
 	CUDA_SAFE_CALL( cudaDeviceSynchronize() );
 
-	printf("----------------------------------------------------------------------------- CSV data -----------------------------------------------------------------------------\n");
-	printf("Experiment ID, Single Precision ops,,,,              Double precision ops,,,,              Half precision ops,,,,                Integer operations,,, \n");
-	printf("Compute iters, Flops/byte, ex.time,  GFLOPS, GB/sec, Flops/byte, ex.time,  GFLOPS, GB/sec, Flops/byte, ex.time,  GFLOPS, GB/sec, Iops/byte, ex.time,   GIOPS, GB/sec\n");
+	printf("------------------------------------------------------------------------------- CSV data -------------------------------------------------------------------------------\n");
+	printf("Experiment ID, Single Precision ops,,,,               Double precision ops,,,,               Half precision ops,,,,                 Integer operations,,, \n");
+	printf("Compute iters, Flops/byte, ex.time,   GFLOPS, GB/sec, Flops/byte, ex.time,   GFLOPS, GB/sec, Flops/byte, ex.time,   GFLOPS, GB/sec, Iops/byte, ex.time,    GIOPS, GB/sec\n");
 
 	runbench_warmup(cd, size);
 
@@ -226,7 +226,7 @@ extern "C" void mixbenchGPU(double *c, long size){
 	runbench<512>(cd, size, doHalfs);
 	runbench<1024>(cd, size, doHalfs);
 
-	printf("--------------------------------------------------------------------------------------------------------------------------------------------------------------------\n");
+	printf("------------------------------------------------------------------------------------------------------------------------------------------------------------------------\n");
 
 	// Copy results back to host memory
 	CUDA_SAFE_CALL( cudaMemcpy(c, cd, size*sizeof(double), cudaMemcpyDeviceToHost) );
