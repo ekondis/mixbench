@@ -1,4 +1,4 @@
-cmake_minimum_required(VERSION 3.8 FATAL_ERROR)
+cmake_minimum_required(VERSION 3.18 FATAL_ERROR)
 project(mixbench LANGUAGES CXX CUDA)
 
 # Include CUDA header directory in cpp files
@@ -8,7 +8,6 @@ include_directories("../include")
 string(APPEND CMAKE_CUDA_FLAGS " -Xptxas=-v")
 string(APPEND CMAKE_CUDA_FLAGS " -Wno-deprecated-gpu-targets")
 string(APPEND CMAKE_CUDA_FLAGS " --cudart=static")
-string(APPEND CMAKE_CUDA_FLAGS " -gencode arch=compute_52,code=[sm_52,compute_52] -gencode arch=compute_61,code=compute_61")
 
 # Get version info from git tag
 execute_process(COMMAND git describe --tags --always
