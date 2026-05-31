@@ -7,10 +7,8 @@
 #ifndef _CUTIL_H_
 #define _CUTIL_H_
 
-#include <CL/sycl.hpp>
+#include <sycl/sycl.hpp>
 #include <stdio.h>
-
-using namespace cl;
 
 #define FRACTION_CEILING(numerator, denominator) ((numerator+denominator-1)/(denominator))
 

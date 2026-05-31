@@ -5,7 +5,7 @@
  **/
 
 #include <common.h>
-#include <CL/sycl.hpp>
+#include <sycl/sycl.hpp>
 #include <chrono>
 #include <iomanip>
 #include <iostream>
@@ -28,12 +28,24 @@ struct MADOperator {
 
 #ifndef __HIPSYCL__
 // Use partial specialization for calling sycl::mad() for generic floating point types
+// Compiler version check: is_genfloat<T>::value was replaced with is_genfloat_v<T> in oneAPI 2024+
+// __INTEL_LLVM_COMPILER format: YYYYMMDD (e.g., 20240000 for 2024.0, 20250300 for 2025.3)
+#if defined(__INTEL_LLVM_COMPILER) && __INTEL_LLVM_COMPILER >= 20240000
 template <typename T>
-struct MADOperator<T, typename std::enable_if_t<sycl::detail::is_genfloat<T>::value>> {
+struct MADOperator<T, typename std::enable_if_t<sycl::detail::is_genfloat_v<T>>> {
     T operator()(T a, T b, T c) {
         return sycl::mad(a, b, c);
     }
 };
+#else
+// Fallback for older Intel compilers or other SYCL implementations
+template <typename T>
+struct MADOperator<T, typename std::enable_if_t<std::is_floating_point_v<T>>> {
+    T operator()(T a, T b, T c) {
+        return sycl::mad(a, b, c);
+    }
+};
+#endif
 #else
 #ifdef SYCL_DEVICE_ONLY
 // Packed half precision operation support via ROCm

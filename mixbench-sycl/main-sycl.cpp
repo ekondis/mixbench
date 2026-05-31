@@ -5,7 +5,6 @@
  **/
 
 #include <iostream>
-#include <CL/sycl.hpp>
 #include "lsyclutil.h"
 #include "mix_kernels_sycl.h"
 #include "version_info.h"
