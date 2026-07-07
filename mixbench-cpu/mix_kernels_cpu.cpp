@@ -87,35 +87,19 @@ Element __attribute__((noinline)) bench_block(Element* data) {
 #endif
 
 template <typename Element, size_t compute_iterations>
-__attribute__((optimize("unroll-loops"))) size_t bench(size_t len,
-                                                       const Element seed1,
-                                                       const Element seed2,
-                                                       Element* src) {
-  Element sum = 0;
+__attribute__((optimize("unroll-loops"))) void bench_in_parallel(
+    size_t len, Element* src, Element* partial_sums) {
   constexpr size_t static_chunk_size = 4096;
+  Element& sum = *partial_sums;
 
-#pragma omp parallel for reduction(+ : sum) schedule(static)
+#pragma omp for schedule(static) reduction(+ : sum)
   for (size_t it_base = 0; it_base < len; it_base += static_chunk_size) {
     sum += bench_block<Element, compute_iterations, static_chunk_size>(
         &src[it_base]);
   }
 
-  *src = sum;
-  return len;
-}
-
-auto runbench_warmup(void* c, size_t size) {
-  const int num_elements = size / sizeof(double);
-  auto timer_start = benchmark_clock::now();
-
-  // initialize memory to avoid UB
-  double* ptr = new (c) double[num_elements];
-
-  bench<double, 16>(num_elements, 1., -1., ptr);
-
-  auto timer_duration = benchmark_clock::now() - timer_start;
-  return std::chrono::duration_cast<std::chrono::microseconds>(timer_duration)
-      .count();
+#pragma omp single
+  { *src = sum; }
 }
 
 template <typename Op>
@@ -131,26 +115,31 @@ auto measure_operation(Op op) {
 template <typename Op>
 auto benchmark_omp(Op op) {
   constexpr int total_runs = 20;
-  constexpr int total_half_thread_runs = 10;
 
-  auto duration = op();  // drop first measurement
-  std::vector<decltype(duration)> measurements;
+  std::vector<double> measurements;
+  benchmark_clock::time_point timer_start;
 
-  // 1st try with full threading
-  omp_set_num_threads(base_omp_get_max_threads);
+#pragma omp parallel
+  {
+    for (int i = 0; i < total_runs; i++) {
+#pragma omp barrier
+#pragma omp single
+      { timer_start = benchmark_clock::now(); }
 
-  for (int i = 1; i < total_runs; i++) {
-    duration = op();
-    measurements.push_back(duration);
-  }
+      op();
 
-  // then try with half threading
-  if (base_omp_get_max_threads > 1) {
-    omp_set_num_threads(base_omp_get_max_threads / 2);
-
-    for (int i = 1; i < total_half_thread_runs; i++) {
-      duration = op();
-      measurements.push_back(duration);
+#pragma omp single
+      {
+        auto timer_duration = benchmark_clock::now() - timer_start;
+        auto duration =
+            std::chrono::duration_cast<std::chrono::microseconds>(
+                timer_duration)
+                .count() /
+            1000.;
+        if (i > 0) {
+          measurements.push_back(duration);
+        }
+      }
     }
   }
 
@@ -192,29 +181,26 @@ void runbench(void* c, size_t size) {
   // floating point part (single prec)
   // initialize memory to avoid UB
   float *c_as_float = new (c) float[cs.element_count<float>()];
+  float sum_float = 0;
   auto kernel_time_mad_sp = benchmark_omp([&] {
-    return measure_operation([&] {
-      bench<float, compute_iterations>(cs.element_count<float>(), 1.f, -1.f,
-                                       c_as_float);
-    });
+    bench_in_parallel<float, compute_iterations>(
+        cs.element_count<float>(), c_as_float, &sum_float);
   });
 
   // floating point part (double prec)
   double *c_as_double = new (c) double[cs.element_count<double>()];
+  double sum_double = 0;
   auto kernel_time_mad_dp = benchmark_omp([&] {
-    return measure_operation([&] {
-      bench<double, compute_iterations>(cs.element_count<double>(), 1., -1.,
-                                        c_as_double);
-    });
+    bench_in_parallel<double, compute_iterations>(
+        cs.element_count<double>(), c_as_double, &sum_double);
   });
 
   // integer part
   int *c_as_int = new (c) int[cs.element_count<int>()];
+  int sum_int = 0;
   auto kernel_time_mad_int = benchmark_omp([&] {
-    return measure_operation([&] {
-      bench<int, compute_iterations>(cs.element_count<int>(), 1, -1,
-                                     c_as_int);
-    });
+    bench_in_parallel<int, compute_iterations>(
+        cs.element_count<int>(), c_as_int, &sum_int);
   });
 
   const auto computations_sp = cs.compute_ops<float>();
@@ -291,8 +277,6 @@ void mixbenchCPU(void* c, size_t size) {
                "Flops/byte, ex.time,  GFLOPS, GB/sec, Iops/byte, ex.time,   "
                "GIOPS, GB/sec"
             << std::endl;
-
-  runbench_warmup(c, size);
 
   runbench_range<0, 1, 2, 3, 4, 6, 8, 12, 16, 20, 24, 28, 32, 40, 6 * 8, 7 * 8,
                  8 * 8, 10 * 8, 13 * 8, 15 * 8, 16 * 8, 20 * 8, 24 * 8, 32 * 8,
