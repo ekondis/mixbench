@@ -113,10 +113,10 @@ auto measure_operation(Op op) {
 }
 
 template <typename Op>
-auto benchmark_omp(Op op) {
-  constexpr int total_runs = 20;
+void benchmark_omp_runs(Op op, int thread_count, int total_runs,
+                        std::vector<double>& measurements) {
+  omp_set_num_threads(thread_count);
 
-  std::vector<double> measurements;
   benchmark_clock::time_point timer_start;
 
 #pragma omp parallel
@@ -141,6 +141,21 @@ auto benchmark_omp(Op op) {
         }
       }
     }
+  }
+}
+
+template <typename Op>
+auto benchmark_omp(Op op) {
+  constexpr int total_runs = 20;
+  constexpr int total_half_thread_runs = 10;
+
+  std::vector<double> measurements;
+
+  benchmark_omp_runs(op, base_omp_get_max_threads, total_runs, measurements);
+
+  if (base_omp_get_max_threads > 1) {
+    benchmark_omp_runs(op, base_omp_get_max_threads / 2,
+                       total_half_thread_runs, measurements);
   }
 
   return *std::min_element(std::begin(measurements), std::end(measurements));
