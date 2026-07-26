@@ -6,21 +6,47 @@
 
 #include <stdio.h>
 #include <stdlib.h>
+#include <errno.h>
+#include <limits.h>
 #include <cuda.h>
 #include <cuda_runtime.h>
-#include <string.h>
 #include "lcutil.h"
 #include "mix_kernels_cuda.h"
 #include "version_info.h"
 
 #define VECTOR_SIZE (32 * 1024 * 1024)
 
+void print_usage(const char* program_name) {
+    printf("Usage: %s [GPU_ID]\n", program_name);
+    printf("  GPU_ID    GPU to use (default: 0)\n");
+}
+
 int main(int argc, char* argv[]) {
     printf("mixbench (%s)\n", VERSION_INFO);
 
+    int gpu_id = 0;
+    if (argc > 2) {
+        print_usage(argv[0]);
+        return 1;
+    }
+
+    if (argc == 2) {
+        char* end;
+        long value;
+
+        errno = 0;
+        value = strtol(argv[1], &end, 10);
+        if (errno != 0 || *argv[1] == '\0' || *end != '\0' || value < 0 || value > INT_MAX) {
+            fprintf(stderr, "Error: GPU ID must be a non-negative integer.\n");
+            print_usage(argv[0]);
+            return 1;
+        }
+        gpu_id = (int)value;
+    }
+
     unsigned int datasize = VECTOR_SIZE * sizeof(double);
 
-    cudaSetDevice(0);
+    cudaSetDevice(gpu_id);
     StoreDeviceInfo(stdout);
 
     size_t freeCUDAMem, totalCUDAMem;
