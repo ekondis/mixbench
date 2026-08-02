@@ -65,9 +65,20 @@ int main(int argc, char* argv[]) {
         gpu_id = (int)value;
     }
 
+    int device_count;
+    CUDA_SAFE_CALL(cudaGetDeviceCount(&device_count));
+    if (gpu_id >= device_count) {
+        fprintf(stderr, "Error: GPU ID %d is out of range; %d CUDA GPU%s available.\n",
+                gpu_id, device_count, device_count == 1 ? " is" : "s are");
+        print_usage(argv[0]);
+        printf("\n");
+        print_available_devices();
+        return 1;
+    }
+
     unsigned int datasize = VECTOR_SIZE * sizeof(double);
 
-    cudaSetDevice(gpu_id);
+    CUDA_SAFE_CALL(cudaSetDevice(gpu_id));
     StoreDeviceInfo(stdout);
 
     size_t freeCUDAMem, totalCUDAMem;
