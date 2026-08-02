@@ -6,6 +6,7 @@
 
 #include <stdio.h>
 #include <stdlib.h>
+#include <string.h>
 #include <errno.h>
 #include <limits.h>
 #include <cuda.h>
@@ -19,6 +20,19 @@
 void print_usage(const char* program_name) {
     printf("Usage: %s [GPU_ID]\n", program_name);
     printf("  GPU_ID    GPU to use (default: 0)\n");
+    printf("  -h, --help  Show this message and list available CUDA GPUs\n");
+}
+
+void print_available_devices() {
+    int device_count;
+    CUDA_SAFE_CALL(cudaGetDeviceCount(&device_count));
+
+    printf("Available CUDA devices:\n");
+    for (int device_id = 0; device_id < device_count; ++device_id) {
+        cudaDeviceProp device_prop;
+        CUDA_SAFE_CALL(cudaGetDeviceProperties(&device_prop, device_id));
+        printf("  %d. %s\n", device_id, device_prop.name);
+    }
 }
 
 int main(int argc, char* argv[]) {
@@ -31,6 +45,13 @@ int main(int argc, char* argv[]) {
     }
 
     if (argc == 2) {
+        if (strcmp(argv[1], "-h") == 0 || strcmp(argv[1], "--help") == 0) {
+            print_usage(argv[0]);
+            printf("\n");
+            print_available_devices();
+            return 0;
+        }
+
         char* end;
         long value;
 

@@ -34,8 +34,10 @@ cmake --build ./
 
 ## Usage
 
-Pass the GPU ID as an optional positional argument to select which GPU to benchmark
-(otherwise defaults to 0), e.g.:
+Use `-h` or `--help` to list the available CUDA GPUs. Pass the GPU ID as an
+optional positional argument to select which GPU to benchmark (otherwise
+defaults to 0), e.g.:
 ```bash
+./mixbench-cuda -h
 ./mixbench-cuda 2
 ```
