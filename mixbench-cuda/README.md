@@ -31,3 +31,13 @@ cmake --build ./
 ```
 
 [1]: https://docs.nvidia.com/cuda/cuda-features-archive/index.html#compiler
+
+## Usage
+
+Use `-h` or `--help` to list the available CUDA GPUs. Pass the GPU ID as an
+optional positional argument to select which GPU to benchmark (otherwise
+defaults to 0), e.g.:
+```bash
+./mixbench-cuda -h
+./mixbench-cuda 2
+```
