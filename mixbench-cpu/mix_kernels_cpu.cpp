@@ -168,11 +168,17 @@ class ComputeSpace {
   template <typename T>
   size_t compute_ops() const {
     const auto total_elements = element_count<T>();
+#ifdef BASELINE_IMPL
+    constexpr size_t accumulator_count = 1;
+#else
+    constexpr size_t accumulator_count = 8;
+#endif
     const long long computations =
         total_elements            /* Vector length */
             * compute_iterations_ /* Core loop iteration count */
             * 2                   /* Flops per core loop iteration */
             * 1                   /* FMAs in the inner most loop */
+        + total_elements * (accumulator_count - 1) /* Accumulator additions */
         + total_elements - 1;     /* Due to sum reduction */
     return computations;
   }
