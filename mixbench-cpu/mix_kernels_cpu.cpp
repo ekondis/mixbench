@@ -18,6 +18,12 @@ const auto base_omp_get_max_threads = omp_get_max_threads();
 using benchmark_clock = std::chrono::steady_clock;
 
 #ifdef BASELINE_IMPL
+constexpr size_t accumulator_count = 1;
+#else
+constexpr size_t accumulator_count = 8;
+#endif
+
+#ifdef BASELINE_IMPL
 
 template <typename Element, size_t compute_iterations, size_t static_chunk_size>
 Element __attribute__((noinline)) bench_block(Element* data) {
@@ -28,7 +34,7 @@ Element __attribute__((noinline)) bench_block(Element* data) {
   for (size_t i = 0; i < static_chunk_size; i++) {
     Element t = data[i];
     for (size_t j = 0; j < compute_iterations; j++) {
-      t = t * t + f;
+      t = t * f + t;
     }
     sum += t;
   }
@@ -48,36 +54,36 @@ Element __attribute__((noinline)) bench_block(Element* data) {
   for (size_t i = 0; i < static_chunk_size; i++) {
     Element t[] = {data[i], data[i], data[i], data[i],
                    data[i], data[i], data[i], data[i]};
-    for (size_t j = 0; j < compute_iterations / 8; j++) {
-      t[0] = t[0] * t[0] + f[0];
-      t[1] = t[1] * t[1] + f[1];
-      t[2] = t[2] * t[2] + f[2];
-      t[3] = t[3] * t[3] + f[3];
-      t[4] = t[4] * t[4] + f[4];
-      t[5] = t[5] * t[5] + f[5];
-      t[6] = t[6] * t[6] + f[6];
-      t[7] = t[7] * t[7] + f[7];
+    for (size_t j = 0; j < compute_iterations / accumulator_count; j++) {
+      t[0] = t[0] * f[0] + t[0];
+      t[1] = t[1] * f[1] + t[1];
+      t[2] = t[2] * f[2] + t[2];
+      t[3] = t[3] * f[3] + t[3];
+      t[4] = t[4] * f[4] + t[4];
+      t[5] = t[5] * f[5] + t[5];
+      t[6] = t[6] * f[6] + t[6];
+      t[7] = t[7] * f[7] + t[7];
     }
-    if constexpr (compute_iterations % 8 > 0) {
-      t[0] = t[0] * t[0] + f[0];
+    if constexpr (compute_iterations % accumulator_count > 0) {
+      t[0] = t[0] * f[0] + t[0];
     }
-    if constexpr (compute_iterations % 8 > 1) {
-      t[1] = t[1] * t[1] + f[1];
+    if constexpr (compute_iterations % accumulator_count > 1) {
+      t[1] = t[1] * f[1] + t[1];
     }
-    if constexpr (compute_iterations % 8 > 2) {
-      t[2] = t[2] * t[2] + f[2];
+    if constexpr (compute_iterations % accumulator_count > 2) {
+      t[2] = t[2] * f[2] + t[2];
     }
-    if constexpr (compute_iterations % 8 > 3) {
-      t[3] = t[3] * t[3] + f[3];
+    if constexpr (compute_iterations % accumulator_count > 3) {
+      t[3] = t[3] * f[3] + t[3];
     }
-    if constexpr (compute_iterations % 8 > 4) {
-      t[4] = t[4] * t[4] + f[4];
+    if constexpr (compute_iterations % accumulator_count > 4) {
+      t[4] = t[4] * f[4] + t[4];
     }
-    if constexpr (compute_iterations % 8 > 5) {
-      t[5] = t[5] * t[5] + f[5];
+    if constexpr (compute_iterations % accumulator_count > 5) {
+      t[5] = t[5] * f[5] + t[5];
     }
-    if constexpr (compute_iterations % 8 > 6) {
-      t[6] = t[6] * t[6] + f[6];
+    if constexpr (compute_iterations % accumulator_count > 6) {
+      t[6] = t[6] * f[6] + t[6];
     }
     sum += t[0] + t[1] + t[2] + t[3] + t[4] + t[5] + t[6] + t[7];
   }
@@ -173,6 +179,7 @@ class ComputeSpace {
             * compute_iterations_ /* Core loop iteration count */
             * 2                   /* Flops per core loop iteration */
             * 1                   /* FMAs in the inner most loop */
+        + total_elements * (accumulator_count - 1) /* Accumulator additions */
         + total_elements - 1;     /* Due to sum reduction */
     return computations;
   }
