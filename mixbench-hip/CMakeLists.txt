@@ -1,56 +1,42 @@
-cmake_minimum_required(VERSION 3.10)
+cmake_minimum_required(VERSION 3.21)
 
-if(NOT DEFINED ENV{HIP_PATH})
-    set(ENV{HIP_PATH} "/opt/rocm/hip")
-endif()
-if(NOT DEFINED ENV{ROCM_PATH})
-    set(ENV{ROCM_PATH} "/opt/rocm/")
-endif()
-if(NOT DEFINED HIP_PATH)
-    set(HIP_PATH $ENV{HIP_PATH} CACHE PATH "Path to which HIP has been installed")
-endif()
-if(NOT DEFINED ROCM_PATH)
-    set(ROCM_PATH $ENV{ROCM_PATH} CACHE PATH "Path to ROCM installation")
-endif()
-set(CMAKE_MODULE_PATH "${HIP_PATH}/cmake" "${ROCM_PATH}/lib/cmake" {CMAKE_MODULE_PATH})
-
-project(mixbench-hip LANGUAGES CXX)
+project(mixbench-hip LANGUAGES CXX HIP)
 
 set(CMAKE_CXX_STANDARD 17)
+set(CMAKE_HIP_STANDARD 17)
+set(CMAKE_BUILD_TYPE Release)
 
-# Search for rocm in common locations
-list(APPEND CMAKE_PREFIX_PATH ${ROCM_PATH}/hip ${ROCM_PATH})
-
-find_package(HIP)
-if(HIP_FOUND)
-    message(STATUS "Found HIP: " ${HIP_VERSION})
-else()
-    message(FATAL_ERROR "Could not find HIP. Ensure that HIP is either installed in /opt/rocm/hip or the variable HIP_PATH is set to point to the right location.")
-endif()
+find_package(hip REQUIRED CONFIG)
 
 # Get version info from git tag
-execute_process(COMMAND git describe --tags --always
-                OUTPUT_VARIABLE GIT_REV
-                ERROR_QUIET)
+execute_process(
+    COMMAND git describe --tags --always
+    WORKING_DIRECTORY ${CMAKE_SOURCE_DIR}
+    OUTPUT_VARIABLE GIT_REV
+    ERROR_QUIET
+)
 
 if ("${GIT_REV}" STREQUAL "")
     set(GIT_REV "")
 endif()
 string(STRIP "${GIT_REV}" GIT_REV)
-file(WRITE "version_info.h" "#define VERSION_INFO \"")
-file(APPEND "version_info.h" ${GIT_REV})
-file(APPEND "version_info.h" "\"")
+file(WRITE "${CMAKE_CURRENT_BINARY_DIR}/version_info.h"
+    "#define VERSION_INFO \"${GIT_REV}\"\n"
+)
 
-# Set compiler and linker
-set(CMAKE_CXX_COMPILER ${HIP_HIPCC_EXECUTABLE})
-set(CMAKE_CXX_LINKER   ${HIP_HIPCC_EXECUTABLE})
-set(CMAKE_BUILD_TYPE Release)
+add_executable(mixbench-hip
+    main-hip.cpp
+    mix_kernels_hip.cpp
+)
 
-include_directories("../include")
+set_source_files_properties(
+    mix_kernels_hip.cpp
+    PROPERTIES LANGUAGE HIP
+)
 
-set(BENCH_SOURCE_FILES main-hip.cpp mix_kernels_hip.cpp)
+target_include_directories(mixbench-hip PRIVATE
+    ../include
+    ${CMAKE_CURRENT_BINARY_DIR}
+)
 
-set_source_files_properties(${BENCH_SOURCE_FILES} PROPERTIES HIP_SOURCE_PROPERTY_FORMAT 1)
-
-
-add_executable(mixbench-hip ${BENCH_SOURCE_FILES})
+target_link_libraries(mixbench-hip PRIVATE hip::host)
